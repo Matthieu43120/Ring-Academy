@@ -1,0 +1,994 @@
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { 
+  Users, 
+  TrendingUp, 
+  Clock, 
+  Award, 
+  BarChart3, 
+  Play, 
+  CreditCard,
+  Plus,
+  Building,
+  Copy,
+  UserPlus,
+  Settings,
+  Trash2,
+  ArrowLeft,
+  Target,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Loader2
+} from 'lucide-react';
+
+function Dashboard() {
+  const { user, organization, sessions, getCreditsInfo, createOrg, getOrgMembers, removeMember, getOrgSessions, isLoading } = useAuth();
+  const [showCreateOrg, setShowCreateOrg] = useState(false);
+  const [orgName, setOrgName] = useState('');
+  const [isCreatingOrg, setIsCreatingOrg] = useState(false);
+  const [orgCreated, setOrgCreated] = useState(false);
+  const [currentView, setCurrentView] = useState<'personal' | 'organization'>('personal');
+  const [selectedMember, setSelectedMember] = useState<string | null>(null);
+  const [selectedSessionDetail, setSelectedSessionDetail] = useState<any | null>(null);
+
+  const creditsInfo = getCreditsInfo();
+  const orgMembers = organization ? getOrgMembers() : [];
+  const orgSessions = organization ? getOrgSessions() : [];
+
+  const handleCreateOrganization = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orgName.trim()) return;
+
+    setIsCreatingOrg(true);
+    try {
+      await createOrg(orgName.trim());
+      setOrgCreated(true);
+      setShowCreateOrg(false);
+      setOrgName('');
+    } catch (error) {
+    } finally {
+      setIsCreatingOrg(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce membre de l\'organisation ?')) {
+      try {
+        await removeMember(userId);
+      } catch (error) {
+      }
+    }
+  };
+
+  const copyOrgCode = () => {
+    if (organization) {
+      navigator.clipboard.writeText(organization.code);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-600 bg-green-50';
+    if (score >= 60) return 'text-yellow-600 bg-yellow-50';
+    return 'text-red-600 bg-red-50';
+  };
+
+  const getMemberSessions = (memberId: string) => {
+    return orgSessions.filter(session => session.userId === memberId);
+  };
+
+  const getOrganizationStats = () => {
+    const totalSessions = orgSessions.length;
+    const averageScore = totalSessions > 0 
+      ? Math.round(orgSessions.reduce((sum, session) => sum + session.score, 0) / totalSessions)
+      : 0;
+    
+    return {
+      totalSessions,
+      averageScore,
+      totalMembers: orgMembers.length
+    };
+  };
+
+  const handleSessionClick = (session: any) => {
+    setSelectedSessionDetail(session);
+  };
+
+  const handleBackToSessions = () => {
+    setSelectedSessionDetail(null);
+  };
+
+  // Gestion de l'état de chargement
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-slate-600 animate-spin mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Chargement de votre tableau de bord...</h1>
+          <p className="text-gray-600">Récupération de vos données en cours</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Accès non autorisé</h1>
+          <Link to="/login" className="text-slate-600 hover:text-slate-500">
+            Se connecter
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const orgStats = organization ? getOrganizationStats() : null;
+
+  // Si une session est sélectionnée pour voir les détails
+  if (selectedSessionDetail) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header avec bouton retour */}
+          <div className="mb-8">
+            <button
+              onClick={handleBackToSessions}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span>Retour aux sessions</span>
+            </button>
+            
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Détails de la session
+            </h1>
+            <p className="text-gray-600">
+              Session du {formatDate(selectedSessionDetail.date)}
+            </p>
+          </div>
+
+          {/* Informations de la session */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="bg-blue-100 p-3 rounded-lg w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                  <Target className="h-8 w-8 text-blue-600" />
+                </div>
+                <p className="text-sm font-medium text-gray-600">Prospect</p>
+                <p className="text-lg font-bold text-gray-900 capitalize">
+                  {selectedSessionDetail.target === 'secretary' ? 'Secrétaire' :
+                   selectedSessionDetail.target === 'hr' ? 'DRH' :
+                   selectedSessionDetail.target === 'manager' ? 'Manager' : 'Commercial'}
+                </p>
+              </div>
+
+              <div className="text-center">
+                <div className="bg-yellow-100 p-3 rounded-lg w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                  <Settings className="h-8 w-8 text-yellow-600" />
+                </div>
+                <p className="text-sm font-medium text-gray-600">Difficulté</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {selectedSessionDetail.difficulty === 'easy' ? 'Facile' :
+                   selectedSessionDetail.difficulty === 'medium' ? 'Moyen' : 'Difficile'}
+                </p>
+              </div>
+
+              <div className="text-center">
+                <div className="bg-green-100 p-3 rounded-lg w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                  <Award className="h-8 w-8 text-green-600" />
+                </div>
+                <p className="text-sm font-medium text-gray-600">Score</p>
+                <p className="text-lg font-bold text-gray-900">{selectedSessionDetail.score}/100</p>
+              </div>
+
+              <div className="text-center">
+                <div className="bg-purple-100 p-3 rounded-lg w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                  <Clock className="h-8 w-8 text-purple-600" />
+                </div>
+                <p className="text-sm font-medium text-gray-600">Durée</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {Math.floor(selectedSessionDetail.duration / 60)}min {selectedSessionDetail.duration % 60}s
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Analyse détaillée */}
+          {selectedSessionDetail.detailedAnalysis && (
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center space-x-3">
+                <div className="bg-blue-500 p-2 rounded-lg">
+                  <AlertCircle className="h-6 w-6 text-white" />
+                </div>
+                <span>Analyse détaillée</span>
+              </h2>
+              <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                <p className="text-gray-800 leading-relaxed text-lg">{selectedSessionDetail.detailedAnalysis}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Points positifs */}
+          {selectedSessionDetail.feedback && selectedSessionDetail.feedback.length > 0 && (
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center space-x-3">
+                <div className="bg-green-500 p-2 rounded-lg">
+                  <CheckCircle className="h-6 w-6 text-white" />
+                </div>
+                <span>Points positifs</span>
+              </h2>
+              <div className="space-y-4">
+                {selectedSessionDetail.feedback.map((item: string, index: number) => (
+                  <div key={index} className="flex items-start space-x-4 p-4 bg-green-50 rounded-xl border border-green-200">
+                    <div className="bg-green-500 p-2 rounded-full mt-1">
+                      <CheckCircle className="h-4 w-4 text-white" />
+                    </div>
+                    <p className="text-gray-800 font-medium flex-1">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Axes d'amélioration */}
+          {selectedSessionDetail.improvements && selectedSessionDetail.improvements.length > 0 && (
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center space-x-3">
+                <div className="bg-orange-500 p-2 rounded-lg">
+                  <XCircle className="h-6 w-6 text-white" />
+                </div>
+                <span>Axes d'amélioration</span>
+              </h2>
+              <div className="space-y-4">
+                {selectedSessionDetail.improvements.map((item: string, index: number) => (
+                  <div key={index} className="flex items-start space-x-4 p-4 bg-orange-50 rounded-xl border border-orange-200">
+                    <div className="bg-orange-500 p-2 rounded-full mt-1">
+                      <XCircle className="h-4 w-4 text-white" />
+                    </div>
+                    <p className="text-gray-800 font-medium flex-1">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recommandations */}
+          {selectedSessionDetail.recommendations && selectedSessionDetail.recommendations.length > 0 && (
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center space-x-3">
+                <div className="bg-primary-500 p-2 rounded-lg">
+                  <Target className="h-6 w-6 text-white" />
+                </div>
+                <span>Recommandations</span>
+              </h2>
+              <div className="space-y-4">
+                {selectedSessionDetail.recommendations.map((item: string, index: number) => (
+                  <div key={index} className="flex items-start space-x-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <div className="bg-blue-500 p-2 rounded-full mt-1">
+                      <Target className="h-4 w-4 text-white" />
+                    </div>
+                    <p className="text-gray-800 font-medium flex-1">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="text-center">
+            <button
+              onClick={handleBackToSessions}
+              className="bg-slate-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-slate-700 transition-colors inline-flex items-center space-x-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span>Retour aux sessions</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {currentView === 'personal' ? 'Mon tableau de bord' : 'Tableau de bord organisation'}
+              </h1>
+              <p className="text-gray-600 mt-2">
+                {currentView === 'personal' 
+                  ? `Bienvenue ${user.firstName} ${user.lastName}`
+                  : `Organisation: ${organization?.name}`
+                }
+              </p>
+              {organization && user.organizationRole === 'owner' && (
+                <div className="flex space-x-4 mt-4">
+                  <button
+                    onClick={() => setCurrentView('personal')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      currentView === 'personal'
+                        ? 'bg-slate-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Vue personnelle
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('organization')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      currentView === 'organization'
+                        ? 'bg-slate-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Vue organisation
+                  </button>
+                </div>
+              )}
+            </div>
+            <Link
+              to="/training"
+              className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors flex items-center space-x-2"
+            >
+              <Play className="h-5 w-5" />
+              <span>Nouvelle simulation</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Message de succès création organisation */}
+        {orgCreated && (
+          <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 mb-8">
+            <div className="flex items-start space-x-4">
+              <div className="bg-green-500 p-3 rounded-lg">
+                <Building className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-green-900 mb-2">
+                  Organisation créée avec succès !
+                </h3>
+                <p className="text-green-800">
+                  Votre organisation a été créée. Partagez le code avec vos collaborateurs pour qu'ils puissent rejoindre.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {currentView === 'personal' ? (
+          <>
+            {/* Crédits personnels ou organisation */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-blue-100 p-3 rounded-lg">
+                    <CreditCard className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {organization ? 'Crédits de l\'organisation' : 'Crédits disponibles'}
+                    </h3>
+                    <p className="text-gray-600">
+                      {creditsInfo.credits} crédits • {creditsInfo.simulationsLeft} simulations restantes
+                    </p>
+                    {organization && (
+                      <p className="text-sm text-gray-500">
+                        {user.organizationRole === 'member' 
+                          ? 'Crédits partagés avec votre organisation' 
+                          : 'Crédits de votre organisation'
+                        }
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right">
+                  {(user.organizationRole !== 'member') && (
+                    <Link
+                      to="/credits"
+                      className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-flex items-center space-x-2"
+                    >
+                      <Plus className="h-5 w-5" />
+                      <span>Recharger</span>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Organisation */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-purple-100 p-3 rounded-lg">
+                    <Building className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Organisation</h3>
+                </div>
+              </div>
+
+              {organization ? (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold text-gray-900">{organization.name}</h4>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        user.organizationRole === 'owner' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {user.organizationRole === 'owner' ? 'Propriétaire' : 'Membre'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-600">Code: </span>
+                      <code className="bg-gray-200 px-2 py-1 rounded text-sm font-mono">
+                        {organization.code}
+                      </code>
+                      <button
+                        onClick={copyOrgCode}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Copier le code"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">Aucune organisation</h4>
+                  <p className="text-gray-600 mb-6">
+                    Créez une organisation pour partager des crédits avec votre équipe
+                  </p>
+                  <button
+                    onClick={() => setShowCreateOrg(true)}
+                    className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors inline-flex items-center space-x-2"
+                  >
+                    <Plus className="h-5 w-5" />
+                    <span>Créer une organisation</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Stats utilisateur */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-blue-100 p-3 rounded-lg">
+                    <BarChart3 className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Sessions totales</p>
+                    <p className="text-2xl font-bold text-gray-900">{sessions.length}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-green-100 p-3 rounded-lg">
+                    <Award className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Score moyen</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {sessions.length > 0 
+                        ? Math.round(sessions.reduce((sum, session) => sum + session.score, 0) / sessions.length)
+                        : 0
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-purple-100 p-3 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Meilleur score</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {sessions.length > 0 ? Math.max(...sessions.map(s => s.score)) : 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Historique des sessions personnelles */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-bold text-gray-900">Mes sessions</h2>
+              </div>
+
+              {sessions.length === 0 ? (
+                <div className="p-12 text-center">
+                  <Play className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune session</h3>
+                  <p className="text-gray-600 mb-4">
+                    Commencez votre première simulation pour voir vos progrès ici.
+                  </p>
+                  <Link
+                    to="/training"
+                    className="bg-slate-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-slate-700 transition-colors inline-flex items-center space-x-2"
+                  >
+                    <Play className="h-5 w-5" />
+                    <span>Commencer</span>
+                  </Link>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Prospect
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Difficulté
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Score
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Durée
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {sessions.slice().reverse().map((session) => (
+                        <tr 
+                          key={session.id} 
+                          className="hover:bg-gray-50 cursor-pointer transition-colors"
+                          onClick={() => handleSessionClick(session)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {formatDate(session.date)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                            {session.target === 'secretary' ? 'Secrétaire' :
+                             session.target === 'hr' ? 'DRH' :
+                             session.target === 'manager' ? 'Manager' : 'Commercial'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              session.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
+                              session.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {session.difficulty === 'easy' ? 'Facile' :
+                               session.difficulty === 'medium' ? 'Moyen' : 'Difficile'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getScoreColor(session.score)}`}>
+                              {session.score}/100
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {Math.floor(session.duration / 60)}min {session.duration % 60}s
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Vue organisation */}
+            {organization && orgStats && (
+              <>
+                {/* Stats organisation */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-blue-100 p-3 rounded-lg">
+                        <Users className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Membres</p>
+                        <p className="text-2xl font-bold text-gray-900">{orgStats.totalMembers}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-green-100 p-3 rounded-lg">
+                        <BarChart3 className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Sessions totales</p>
+                        <p className="text-2xl font-bold text-gray-900">{orgStats.totalSessions}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-purple-100 p-3 rounded-lg">
+                        <Award className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Score moyen</p>
+                        <p className="text-2xl font-bold text-gray-900">{orgStats.averageScore}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-orange-100 p-3 rounded-lg">
+                        <CreditCard className="h-6 w-6 text-orange-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Crédits restants</p>
+                        <p className="text-2xl font-bold text-gray-900">{creditsInfo.credits}</p>
+                        <Link
+                          to="/credits"
+                          className="text-xs text-blue-600 hover:text-blue-800 mt-1 inline-block"
+                        >
+                          Recharger →
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Liste des membres */}
+                <div className="bg-white rounded-xl shadow-lg border border-gray-200">
+                  <div className="p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-bold text-gray-900">Membres de l'organisation</h2>
+                  </div>
+
+                  {selectedMember ? (
+                    <div className="p-6">
+                      <button
+                        onClick={() => setSelectedMember(null)}
+                        className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 mb-4"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                        <span>Retour à la liste</span>
+                      </button>
+                      
+                      {(() => {
+                        const selectedMemberData = orgMembers.find(m => m.id === selectedMember);
+                        const memberSessions = getMemberSessions(selectedMember);
+                        
+                        if (!selectedMemberData) {
+                          return (
+                            <div className="bg-red-50 rounded-lg p-6">
+                              <p className="text-red-600">Membre non trouvé.</p>
+                            </div>
+                          );
+                        }
+                        
+                        return (
+                          <div>
+                            {/* En-tête du membre */}
+                            <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                              <div className="flex items-center space-x-4">
+                                <div className="bg-gray-200 p-3 rounded-full">
+                                  <Users className="h-6 w-6 text-gray-600" />
+                                </div>
+                                <div>
+                                  <h3 className="text-xl font-bold text-gray-900">
+                                    {selectedMemberData.firstName} {selectedMemberData.lastName}
+                                  </h3>
+                                  <p className="text-gray-600">{selectedMemberData.email}</p>
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${
+                                    selectedMemberData.organizationRole === 'owner' 
+                                      ? 'bg-blue-100 text-blue-800' 
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {selectedMemberData.organizationRole === 'owner' ? 'Propriétaire' : 'Membre'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Stats du membre */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                                <div className="flex items-center space-x-4">
+                                  <div className="bg-blue-100 p-3 rounded-lg">
+                                    <BarChart3 className="h-6 w-6 text-blue-600" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-600">Sessions totales</p>
+                                    <p className="text-2xl font-bold text-gray-900">{memberSessions.length}</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                                <div className="flex items-center space-x-4">
+                                  <div className="bg-green-100 p-3 rounded-lg">
+                                    <Award className="h-6 w-6 text-green-600" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-600">Score moyen</p>
+                                    <p className="text-2xl font-bold text-gray-900">
+                                      {memberSessions.length > 0 
+                                        ? Math.round(memberSessions.reduce((sum, session) => sum + session.score, 0) / memberSessions.length)
+                                        : 0
+                                      }
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                                <div className="flex items-center space-x-4">
+                                  <div className="bg-purple-100 p-3 rounded-lg">
+                                    <TrendingUp className="h-6 w-6 text-purple-600" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-600">Meilleur score</p>
+                                    <p className="text-2xl font-bold text-gray-900">
+                                      {memberSessions.length > 0 ? Math.max(...memberSessions.map(s => s.score)) : 0}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Historique des sessions du membre */}
+                            <div className="bg-white rounded-xl shadow-lg border border-gray-200">
+                              <div className="p-6 border-b border-gray-200">
+                                <h2 className="text-xl font-bold text-gray-900">
+                                  Sessions de {selectedMemberData.firstName}
+                                </h2>
+                              </div>
+
+                              {memberSessions.length === 0 ? (
+                                <div className="p-12 text-center">
+                                  <Play className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune session</h3>
+                                  <p className="text-gray-600">
+                                    Ce membre n'a pas encore effectué de simulation.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full">
+                                    <thead className="bg-gray-50">
+                                      <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                          Date
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                          Prospect
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                          Difficulté
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                          Score
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                          Durée
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                      {memberSessions.slice().reverse().map((session) => (
+                                        <tr 
+                                          key={session.id} 
+                                          className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                          onClick={() => handleSessionClick(session)}
+                                        >
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {formatDate(session.date)}
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                                            {session.target === 'secretary' ? 'Secrétaire' :
+                                             session.target === 'hr' ? 'DRH' :
+                                             session.target === 'manager' ? 'Manager' : 'Commercial'}
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                              session.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
+                                              session.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                              'bg-red-100 text-red-800'
+                                            }`}>
+                                              {session.difficulty === 'easy' ? 'Facile' :
+                                               session.difficulty === 'medium' ? 'Moyen' : 'Difficile'}
+                                            </span>
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getScoreColor(session.score)}`}>
+                                              {session.score}/100
+                                            </span>
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {Math.floor(session.duration / 60)}min {session.duration % 60}s
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Membre
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Email
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Rôle
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Sessions
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Score moyen
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {orgMembers.map((member) => {
+                            const memberSessions = getMemberSessions(member.id);
+                            const memberAvgScore = memberSessions.length > 0 
+                              ? Math.round(memberSessions.reduce((sum, session) => sum + session.score, 0) / memberSessions.length)
+                              : 0;
+                            
+                            return (
+                              <tr key={member.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    <div className="bg-gray-200 p-2 rounded-full mr-3">
+                                      <Users className="h-4 w-4 text-gray-600" />
+                                    </div>
+                                    <div>
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {member.firstName} {member.lastName}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {member.email}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                    member.organizationRole === 'owner' 
+                                      ? 'bg-blue-100 text-blue-800' 
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {member.organizationRole === 'owner' ? 'Propriétaire' : 'Membre'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {memberSessions.length}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {memberSessions.length > 0 ? `${memberAvgScore}/100` : '-'}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={() => setSelectedMember(member.id)}
+                                      className="text-blue-600 hover:text-blue-900"
+                                    >
+                                      Voir détails
+                                    </button>
+                                    {member.organizationRole !== 'owner' && (
+                                      <button
+                                        onClick={() => handleRemoveMember(member.id)}
+                                        className="text-red-600 hover:text-red-900"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* Modal création organisation */}
+        {showCreateOrg && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <div className="text-center mb-6">
+                <div className="bg-purple-600 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                  <Building className="h-8 w-8 text-white" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  Créer une organisation
+                </h2>
+                <p className="text-gray-600">
+                  Créez une organisation pour partager des crédits avec votre équipe
+                </p>
+              </div>
+
+              <form onSubmit={handleCreateOrganization} className="space-y-4">
+                <div>
+                  <label htmlFor="orgName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Nom de l'organisation
+                  </label>
+                  <input
+                    id="orgName"
+                    type="text"
+                    required
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    placeholder="Mon entreprise"
+                  />
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateOrg(false)}
+                    className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreatingOrg || !orgName.trim()}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isCreatingOrg ? 'Création...' : 'Créer'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default Dashboard;

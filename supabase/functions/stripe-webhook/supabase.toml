@@ -1,0 +1,4 @@
+# Configuration pour la fonction stripe-webhook
+# Désactive la vérification JWT pour permettre aux webhooks Stripe de fonctionner
+name = "stripe-webhook"
+verify_jwt = false

@@ -215,10 +215,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log('✅ AUTH_CHANGE: Session rafraîchie avec succès:', refreshData?.session?.user?.id);
           }
           
-          // Attendre un peu pour que le rafraîchissement soit effectif
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // NOUVEAU: Délai plus long et logs détaillés autour de loadUserData
+          console.log('⏳ AUTH_CHANGE: Attente avant loadUserData...');
+          await new Promise(resolve => setTimeout(resolve, 800)); // Augmenté de 500ms à 800ms
           
+          console.log('🚀 AUTH_CHANGE: Début appel loadUserData...');
           await loadUserData(session.user.id);
+          console.log('✅ AUTH_CHANGE: Fin appel loadUserData avec succès');
         } catch (error) {
           console.error('❌ AUTH_CHANGE: Erreur lors du chargement des données après SIGNED_IN:', error);
           // En cas d'erreur, déconnecter proprement

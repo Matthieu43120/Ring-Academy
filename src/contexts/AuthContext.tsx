@@ -263,10 +263,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('🔄 INIT: Rafraîchissement de la session...');
           const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
           
-          if (refreshError) {
-            console.error('❌ INIT: Session invalide, déconnexion forcée:', refreshError);
+          // Log du résultat de refreshSession pour diagnostic
+          console.log('🔄 INIT: Résultat refreshSession - refreshData:', refreshData, 'refreshError:', refreshError);
+          
+          if (refreshError || !refreshData.session?.user) {
+            console.error('❌ INIT: Session invalide, déconnexion forcée:', refreshError || 'Pas d\'utilisateur dans la session rafraîchie');
             try {
               await supabase.auth.signOut();
+              console.log('✅ INIT: Déconnexion forcée terminée');
             } catch (signOutError) {
               console.error('❌ INIT: Erreur lors de la déconnexion forcée:', signOutError);
             }
@@ -275,6 +279,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setSessions([]);
             setOrgMembers([]);
             setOrgSessions([]);
+            await new Promise(resolve => setTimeout(resolve, 200));
             return;
           }
           

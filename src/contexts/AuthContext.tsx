@@ -204,6 +204,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('✅ AUTH_CHANGE: SIGNED_IN détecté, chargement des données...');
         setIsLoading(true);
         try {
+          // NOUVEAU: Forcer le rafraîchissement de la session pour s'assurer que l'auth.uid() est disponible
+          console.log('🔄 AUTH_CHANGE: Rafraîchissement de la session...');
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshError) {
+            console.error('❌ AUTH_CHANGE: Erreur rafraîchissement session:', refreshError);
+            // Continuer quand même, le rafraîchissement peut échouer mais la session peut être valide
+          } else {
+            console.log('✅ AUTH_CHANGE: Session rafraîchie avec succès:', refreshData?.session?.user?.id);
+          }
+          
+          // Attendre un peu pour que le rafraîchissement soit effectif
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
           await loadUserData(session.user.id);
         } catch (error) {
           console.error('❌ AUTH_CHANGE: Erreur lors du chargement des données après SIGNED_IN:', error);
@@ -244,6 +258,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', userId)
         .single();
 
+      // NOUVEAU: Log détaillé du résultat de la requête
+      console.log('📊 LOAD_USER: Résultat requête profil - userData:', userData, 'userError:', userError);
+      
+      // NOUVEAU: Vérifier l'état de la session auth au moment de la requête
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      console.log('📊 LOAD_USER: Session auth au moment de la requête:', currentSession?.user?.id, 'auth.uid disponible:', !!currentSession?.user?.id);
       if (userError) {
         // Gérer spécifiquement l'erreur de récursion infinie RLS
         if (userError.code === '42P17' || userError.message?.includes('infinite recursion')) {
@@ -257,6 +277,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
         console.error('❌ LOAD_USER: Erreur chargement profil utilisateur:', userError);
+        console.error('❌ LOAD_USER: Détails complets de l\'erreur:', JSON.stringify(userError, null, 2));
         // En cas d'erreur de chargement, déconnecter proprement
         try {
           await supabase.auth.signOut();
@@ -510,13 +531,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password
       });
 
+      console.log('🔐 LOGIN: Résultat signInWithPassword - data:', data, 'error:', error);
       if (error) {
         console.error('❌ LOGIN: Erreur signInWithPassword:', error);
+        console.error('❌ LOGIN: Détails complets de l\'erreur:', JSON.stringify(error, null, 2));
         throw new Error(error.message);
       }
 
       if (data.user) {
         console.log('✅ LOGIN: Utilisateur connecté, chargement des données...');
+        
+        // NOUVEAU: Vérifier l'état de la session immédiatement après la connexion
+        const { data: { session: postLoginSession } } = await supabase.auth.getSession();
+        console.log('🔐 LOGIN: Session après connexion:', postLoginSession?.user?.id);
+        
         await loadUserData(data.user.id);
         console.log('✅ LOGIN: Connexion terminée avec succès');
       } else {
@@ -524,6 +552,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('❌ LOGIN: Erreur lors de la connexion:', error);
+      console.error('❌ LOGIN: Détails complets de l\'erreur:', JSON.stringify(error, null, 2));
       throw error;
     } finally {
       // CRITIQUE: Toujours remettre isLoading à false, même en cas d'erreur

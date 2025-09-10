@@ -5,12 +5,20 @@ import { useAuth } from '../contexts/AuthContext';
 
 function Login() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const { login, isLoading } = useAuth();
-  const navigate = useNavigate();
+  const { user, login, isLoading } = useAuth();
+
+  // Redirection automatique si l'utilisateur est déjà connecté
+  React.useEffect(() => {
+    if (user && !isLoading) {
+      console.log('🔄 LOGIN: Utilisateur déjà connecté, redirection vers dashboard');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, isLoading, navigate]);
 
   // Vérifier s'il y a un message de succès dans l'URL
   React.useEffect(() => {

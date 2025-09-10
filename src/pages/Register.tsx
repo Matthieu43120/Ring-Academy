@@ -6,12 +6,20 @@ import { useAuth } from '../contexts/AuthContext';
 function Register() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { register, isLoading } = useAuth();
+  const { user, register, isLoading } = useAuth();
   
   // Récupérer le code organisation depuis l'URL si présent
   const searchParams = new URLSearchParams(location.search);
   const orgCodeFromUrl = searchParams.get('orgCode') || '';
   
+  // Redirection automatique si l'utilisateur est déjà connecté
+  React.useEffect(() => {
+    if (user && !isLoading) {
+      console.log('🔄 REGISTER: Utilisateur déjà connecté, redirection vers dashboard');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, isLoading, navigate]);
+
   // État pour le type de compte
   const [accountType, setAccountType] = useState<'individual' | 'organization'>(
     orgCodeFromUrl ? 'organization' : 'individual'

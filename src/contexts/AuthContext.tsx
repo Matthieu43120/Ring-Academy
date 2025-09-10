@@ -184,8 +184,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.error('❌ VISIBILITY: Session invalide, déconnexion forcée:', refreshError);
                 try {
                   await supabase.auth.signOut();
+                  // Nettoyage manuel du localStorage après signOut
+                  clearSupabaseTokensFromLocalStorage();
                 } catch (signOutError) {
                   console.error('❌ VISIBILITY: Erreur lors de la déconnexion forcée:', signOutError);
+                  // Même en cas d'erreur de signOut, nettoyer manuellement
+                  clearSupabaseTokensFromLocalStorage();
                 }
                 setUser(null);
                 setOrganization(null);

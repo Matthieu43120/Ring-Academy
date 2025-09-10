@@ -692,8 +692,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('🔄 LOGIN: Rafraîchissement de la session après connexion...');
         const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
         
-        if (refreshError) {
-          console.error('❌ LOGIN: Erreur rafraîchissement session après connexion:', refreshError);
+        // Log du résultat de refreshSession pour diagnostic
+        console.log('🔄 LOGIN: Résultat refreshSession - refreshData:', refreshData, 'refreshError:', refreshError);
+        
+        if (refreshError || !refreshData.session?.user) {
+          console.error('❌ LOGIN: Session invalide après connexion:', refreshError || 'Pas d\'utilisateur dans la session rafraîchie');
           throw new Error('Session invalide après connexion');
         }
         

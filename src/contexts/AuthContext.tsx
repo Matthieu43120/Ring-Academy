@@ -890,6 +890,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setOrganization(null);
       setSessions([]);
       setOrgMembers([]);
+      // Log de l'état final de l'utilisateur
+      console.log('👤 LOAD_USER: État final de l\'utilisateur après loadUserData:', {
+        userExists: !!user,
+        userId: user?.id || 'null',
+        userEmail: user?.email || 'null',
+        organizationId: user?.organizationId || 'null',
+        organizationRole: user?.organizationRole || 'null'
+      });
+      
       setOrgSessions([]);
     } finally {
       // S'assurer que l'état de chargement est réinitialisé même en cas d'erreur

@@ -2,6 +2,57 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
+// Fonctions utilitaires pour le nettoyage manuel du localStorage
+const getSupabaseProjectRef = (): string => {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (!supabaseUrl) return '';
+  
+  // Extraire la référence du projet depuis l'URL Supabase
+  // Format typique: https://[project-ref].supabase.co
+  const match = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/);
+  return match ? match[1] : '';
+};
+
+const clearSupabaseTokensFromLocalStorage = (): void => {
+  console.log('🧹 CLEANUP: Début nettoyage manuel du localStorage...');
+  
+  const projectRef = getSupabaseProjectRef();
+  if (!projectRef) {
+    console.warn('⚠️ CLEANUP: Impossible d\'extraire la référence du projet Supabase');
+    return;
+  }
+  
+  // Clés utilisées par Supabase pour stocker les jetons
+  const tokenKeys = [
+    `sb-${projectRef}-auth-token`,
+    `supabase.auth.token`,
+    `sb-${projectRef}-auth-token-code-verifier`,
+    `sb-${projectRef}-auth-token-refresh-token`,
+    `sb-${projectRef}-auth-token-access-token`
+  ];
+  
+  let tokensRemoved = 0;
+  tokenKeys.forEach(key => {
+    if (localStorage.getItem(key)) {
+      localStorage.removeItem(key);
+      tokensRemoved++;
+      console.log(`🧹 CLEANUP: Supprimé ${key}`);
+    }
+  });
+  
+  // Nettoyage supplémentaire : supprimer toutes les clés qui commencent par 'sb-'
+  const allKeys = Object.keys(localStorage);
+  allKeys.forEach(key => {
+    if (key.startsWith('sb-') && key.includes(projectRef)) {
+      localStorage.removeItem(key);
+      tokensRemoved++;
+      console.log(`🧹 CLEANUP: Supprimé clé supplémentaire ${key}`);
+    }
+  });
+  
+  console.log(`✅ CLEANUP: Nettoyage terminé, ${tokensRemoved} jetons supprimés`);
+};
+
 export interface User {
   id: string;
   firstName: string;
@@ -270,9 +321,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('❌ INIT: Session invalide, déconnexion forcée:', refreshError || 'Pas d\'utilisateur dans la session rafraîchie');
             try {
               await supabase.auth.signOut();
+              // Nettoyage manuel du localStorage après signOut
+              clearSupabaseTokensFromLocalStorage();
               console.log('✅ INIT: Déconnexion forcée terminée');
             } catch (signOutError) {
               console.error('❌ INIT: Erreur lors de la déconnexion forcée:', signOutError);
+              // Même en cas d'erreur de signOut, nettoyer manuellement
+              clearSupabaseTokensFromLocalStorage();
             }
             setUser(null);
             setOrganization(null);

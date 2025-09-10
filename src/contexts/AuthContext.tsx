@@ -403,8 +403,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('❌ AUTH_CHANGE: Session invalide, déconnexion forcée:', refreshError);
             try {
               await supabase.auth.signOut();
+              // Nettoyage manuel du localStorage après signOut
+              clearSupabaseTokensFromLocalStorage();
             } catch (signOutError) {
               console.error('❌ AUTH_CHANGE: Erreur lors de la déconnexion forcée:', signOutError);
+              // Même en cas d'erreur de signOut, nettoyer manuellement
+              clearSupabaseTokensFromLocalStorage();
             }
             setUser(null);
             setOrganization(null);
@@ -425,12 +429,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Déconnecter proprement en cas d'erreur de chargement
             try {
               await supabase.auth.signOut();
-              // Nettoyage manuel du localStorage après signOut
-              clearSupabaseTokensFromLocalStorage();
             } catch (signOutError) {
               console.error('❌ AUTH_CHANGE: Erreur lors de la déconnexion après échec de chargement:', signOutError);
-              // Même en cas d'erreur de signOut, nettoyer manuellement
-              clearSupabaseTokensFromLocalStorage();
             }
             setUser(null);
             setOrganization(null);

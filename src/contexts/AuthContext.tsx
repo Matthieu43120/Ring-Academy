@@ -284,7 +284,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSessions([]);
           setOrgMembers([]);
           setOrgSessions([]);
-          return;
         }
         console.error('❌ LOAD_USER: Erreur chargement profil utilisateur:', userError);
         console.error('❌ LOAD_USER: Détails complets de l\'erreur:', JSON.stringify(userError, null, 2));
@@ -299,7 +298,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSessions([]);
         setOrgMembers([]);
         setOrgSessions([]);
-        return;
       }
 
       if (userData) {

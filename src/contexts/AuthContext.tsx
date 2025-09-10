@@ -204,20 +204,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('✅ AUTH_CHANGE: SIGNED_IN détecté, chargement des données...');
         setIsLoading(true);
         try {
-          // NOUVEAU: Forcer le rafraîchissement de la session pour s'assurer que l'auth.uid() est disponible
-          console.log('🔄 AUTH_CHANGE: Rafraîchissement de la session...');
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-          
-          if (refreshError) {
-            console.error('❌ AUTH_CHANGE: Erreur rafraîchissement session:', refreshError);
-            // Continuer quand même, le rafraîchissement peut échouer mais la session peut être valide
-          } else {
-            console.log('✅ AUTH_CHANGE: Session rafraîchie avec succès:', refreshData?.session?.user?.id);
-          }
-          
-          // NOUVEAU: Délai plus long et logs détaillés autour de loadUserData
+          // NOUVEAU: Délai réduit et logs détaillés autour de loadUserData
           console.log('⏳ AUTH_CHANGE: Attente avant loadUserData...');
-          await new Promise(resolve => setTimeout(resolve, 800)); // Augmenté de 500ms à 800ms
+          await new Promise(resolve => setTimeout(resolve, 100)); // Réduit à 100ms
           
           console.log('🚀 AUTH_CHANGE: Début appel loadUserData...');
           await loadUserData(session.user.id);

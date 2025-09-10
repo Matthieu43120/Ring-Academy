@@ -96,33 +96,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Charger l'état de l'essai gratuit depuis localStorage
     setFreeTrialUsed(localStorage.getItem('ring_academy_free_trial_used') === 'true');
 
-    // Gestionnaire pour rafraîchir la session quand l'onglet redevient visible
+    // Gestionnaire robuste pour rafraîchir la session quand l'onglet redevient visible
     const handleVisibilityChange = async () => {
-      if (!document.hidden && user) {
+      if (!document.hidden) {
+        console.log('🔄 Onglet redevenu visible, vérification de la session...');
+        setIsLoading(true);
+        
         try {
-          console.log('🔄 Onglet redevenu visible, vérification de la session...');
           const { data: { session }, error } = await supabase.auth.getSession();
           
           if (error) {
             console.error('❌ Erreur lors de la vérification de session:', error);
-            // Déconnexion propre en cas d'erreur de session
+            // Déconnexion propre en cas d'erreur de session critique
             await supabase.auth.signOut();
+            setUser(null);
+            setOrganization(null);
+            setSessions([]);
+            setOrgMembers([]);
+            setOrgSessions([]);
             return;
           }
           
-          if (session?.user && user.id === session.user.id) {
-            // Session valide, recharger les données utilisateur pour s'assurer qu'elles sont à jour
-            console.log('✅ Session valide, rechargement des données...');
-            await loadUserData(session.user.id);
-          } else if (!session) {
-            // Pas de session valide, déconnecter proprement
-            console.log('⚠️ Pas de session valide, déconnexion...');
-            await supabase.auth.signOut();
+          if (session?.user) {
+            // Session valide trouvée
+            if (!user || user.id !== session.user.id) {
+              // Utilisateur pas encore chargé ou différent, charger les données
+              console.log('✅ Session valide trouvée, chargement des données utilisateur...');
+              await loadUserData(session.user.id);
+            } else {
+              // Utilisateur déjà chargé et correspond, juste recharger pour s'assurer que les données sont à jour
+              console.log('✅ Session valide, rechargement des données...');
+              await loadUserData(session.user.id);
+            }
+          } else if (!session && user) {
+            // Pas de session mais utilisateur encore dans l'état, déconnecter proprement
+            console.log('⚠️ Pas de session valide mais utilisateur encore connecté, déconnexion...');
+            setUser(null);
+            setOrganization(null);
+            setSessions([]);
+            setOrgMembers([]);
+            setOrgSessions([]);
+          } else {
+            // Pas de session et pas d'utilisateur, état normal pour un visiteur
+            console.log('ℹ️ Pas de session, utilisateur non connecté');
           }
         } catch (error) {
           console.error('❌ Erreur lors de la vérification de visibilité:', error);
-          // En cas d'erreur, déconnecter proprement
-          await supabase.auth.signOut();
+          // En cas d'erreur, nettoyer l'état et déconnecter proprement
+          try {
+            await loadUserData(session.user.id);
+            await supabase.auth.signOut();
+          } catch (signOutError) {
+            console.error('❌ Erreur lors de la déconnexion:', signOutError);
+          }
+          setUser(null);
+          setOrganization(null);
+          setSessions([]);
+          setOrgMembers([]);
+          setOrgSessions([]);
+        } finally {
+          // CRITIQUE: Toujours remettre isLoading à false
+          setIsLoading(false);
         }
       }
     };
@@ -159,16 +193,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (event === 'SIGNED_IN' && session?.user) {
         setIsLoading(true);
-        await loadUserData(session.user.id);
+        try {
+          await loadUserData(session.user.id);
+        } catch (error) {
+          console.error('❌ Erreur lors du chargement des données après SIGNED_IN:', error);
+          // En cas d'erreur, déconnecter proprement
+          await supabase.auth.signOut();
+        } finally {
+          setIsLoading(false);
+        }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setOrganization(null);
         setSessions([]);
         setOrgMembers([]);
         setOrgSessions([]);
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     });
 
     return () => {
@@ -193,15 +234,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('❌ Erreur RLS récursion infinie, déconnexion...');
           await supabase.auth.signOut();
           setUser(null);
+          setOrganization(null);
+          setSessions([]);
+          setOrgMembers([]);
+          setOrgSessions([]);
           return;
-        }
-        // Si erreur de récursion RLS ou autre erreur critique, déconnecter l'utilisateur
-        if (userError.code === '42P17' || userError.message?.includes('infinite recursion')) {
-          await logout();
         }
         console.error('❌ Erreur chargement profil utilisateur:', userError);
         // En cas d'erreur de chargement, déconnecter proprement
-        await supabase.auth.signOut();
+        try {
+          await supabase.auth.signOut();
+        } catch (signOutError) {
+          console.error('❌ Erreur lors de la déconnexion après échec de chargement:', signOutError);
+        }
+        setUser(null);
+        setOrganization(null);
+        setSessions([]);
+        setOrgMembers([]);
+        setOrgSessions([]);
         return;
       }
 
@@ -247,7 +297,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Load organization members and sessions
             await loadOrgMembers(orgData.id);
             await loadOrgSessions(orgData.id);
+          } else {
+            // Réinitialiser l'organisation si erreur de chargement
+            setOrganization(null);
+            setOrgMembers([]);
+            setOrgSessions([]);
           }
+        } else {
+          // Pas d'organisation, réinitialiser les états liés
+          setOrganization(null);
+          setOrgMembers([]);
+          setOrgSessions([]);
         }
 
         // Charger les sessions de l'utilisateur
@@ -256,7 +316,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('❌ Erreur critique lors du chargement des données:', error);
       // En cas d'erreur critique, déconnecter proprement
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (signOutError) {
+        console.error('❌ Erreur lors de la déconnexion après erreur critique:', signOutError);
+      }
+      setUser(null);
+      setOrganization(null);
+      setSessions([]);
+      setOrgMembers([]);
+      setOrgSessions([]);
     }
   };
 
@@ -271,6 +340,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!error && sessionsData) {
         const userSessions: SessionData[] = sessionsData.map(session => ({
           id: session.id,
+          userId: session.user_id,
           target: session.target,
           difficulty: session.difficulty,
           score: session.score,
@@ -282,8 +352,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           date: session.created_at
         }));
         setSessions(userSessions);
+      } else if (error) {
+        console.error('❌ Erreur chargement sessions utilisateur:', error);
+        setSessions([]);
       }
     } catch (error) {
+      console.error('❌ Erreur critique chargement sessions:', error);
+      setSessions([]);
     }
   };
 
@@ -399,6 +474,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('❌ Erreur lors de la connexion:', error);
       throw error;
     } finally {
+      // CRITIQUE: Toujours remettre isLoading à false, même en cas d'erreur
       setIsLoading(false);
     }
   };
@@ -491,6 +567,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Les états seront réinitialisés par onAuthStateChange
     } catch (error) {
       console.error('❌ Erreur critique lors de la déconnexion:', error);
+      // En cas d'erreur, forcer la réinitialisation des états
+      setUser(null);
+      setOrganization(null);
+      setSessions([]);
+      setOrgMembers([]);
+      setOrgSessions([]);
     } finally {
       // S'assurer que l'état de chargement est réinitialisé même en cas d'erreur
       setIsLoading(false);

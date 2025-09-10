@@ -124,32 +124,88 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!user || user.id !== session.user.id) {
               // Utilisateur pas encore chargé ou différent, charger les données
               console.log('✅ VISIBILITY: Session valide trouvée, chargement des données utilisateur...');
-              try {
-                await loadUserData(session.user.id);
-              } catch (loadError) {
-                console.error('❌ VISIBILITY: Erreur lors du chargement des données utilisateur:', loadError);
-                // Déconnecter proprement en cas d'erreur de chargement
-                await supabase.auth.signOut();
+              
+              // Rafraîchir la session pour valider le jeton
+              console.log('🔄 VISIBILITY: Rafraîchissement de la session...');
+              const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+              
+              if (refreshError) {
+                console.error('❌ VISIBILITY: Session invalide, déconnexion forcée:', refreshError);
+                try {
+                  await supabase.auth.signOut();
+                } catch (signOutError) {
+                  console.error('❌ VISIBILITY: Erreur lors de la déconnexion forcée:', signOutError);
+                }
                 setUser(null);
                 setOrganization(null);
                 setSessions([]);
                 setOrgMembers([]);
                 setOrgSessions([]);
+                return;
+              }
+              
+              console.log('✅ VISIBILITY: Session rafraîchie avec succès');
+              const validUserId = refreshData.session?.user?.id || session.user.id;
+              
+              try {
+                await loadUserData(validUserId);
+              } catch (loadError) {
+                console.error('❌ VISIBILITY: Erreur lors du chargement des données utilisateur:', loadError);
+                // Déconnecter proprement en cas d'erreur de chargement
+                try {
+                  await supabase.auth.signOut();
+                } catch (signOutError) {
+                  console.error('❌ VISIBILITY: Erreur lors de la déconnexion après échec de chargement:', signOutError);
+                }
+                setUser(null);
+                setOrganization(null);
+                setSessions([]);
+                setOrgMembers([]);
+                setOrgSessions([]);
+                await new Promise(resolve => setTimeout(resolve, 200));
               }
             } else {
               // Utilisateur déjà chargé et correspond, juste recharger pour s'assurer que les données sont à jour
               console.log('✅ VISIBILITY: Session valide, rechargement des données...');
-              try {
-                await loadUserData(session.user.id);
-              } catch (loadError) {
-                console.error('❌ VISIBILITY: Erreur lors du rechargement des données utilisateur:', loadError);
-                // Déconnecter proprement en cas d'erreur de chargement
-                await supabase.auth.signOut();
+              
+              // Rafraîchir la session pour valider le jeton
+              console.log('🔄 VISIBILITY: Rafraîchissement de la session...');
+              const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+              
+              if (refreshError) {
+                console.error('❌ VISIBILITY: Session invalide lors du rechargement, déconnexion forcée:', refreshError);
+                try {
+                  await supabase.auth.signOut();
+                } catch (signOutError) {
+                  console.error('❌ VISIBILITY: Erreur lors de la déconnexion forcée lors du rechargement:', signOutError);
+                }
                 setUser(null);
                 setOrganization(null);
                 setSessions([]);
                 setOrgMembers([]);
                 setOrgSessions([]);
+                return;
+              }
+              
+              console.log('✅ VISIBILITY: Session rafraîchie avec succès lors du rechargement');
+              const validUserId = refreshData.session?.user?.id || session.user.id;
+              
+              try {
+                await loadUserData(validUserId);
+              } catch (loadError) {
+                console.error('❌ VISIBILITY: Erreur lors du rechargement des données utilisateur:', loadError);
+                // Déconnecter proprement en cas d'erreur de chargement
+                try {
+                  await supabase.auth.signOut();
+                } catch (signOutError) {
+                  console.error('❌ VISIBILITY: Erreur lors de la déconnexion après échec de rechargement:', signOutError);
+                }
+                setUser(null);
+                setOrganization(null);
+                setSessions([]);
+                setOrgMembers([]);
+                setOrgSessions([]);
+                await new Promise(resolve => setTimeout(resolve, 200));
               }
             }
           } else if (!session && user) {
@@ -167,12 +223,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (error) {
           console.error('❌ VISIBILITY: Erreur lors de la vérification de visibilité:', error);
           // En cas d'erreur, déconnecter proprement
-          await supabase.auth.signOut();
+          try {
+            await supabase.auth.signOut();
+          } catch (signOutError) {
+            console.error('❌ VISIBILITY: Erreur lors de la déconnexion d\'urgence:', signOutError);
+          }
           setUser(null);
           setOrganization(null);
           setSessions([]);
           setOrgMembers([]);
           setOrgSessions([]);
+          await new Promise(resolve => setTimeout(resolve, 200));
         } finally {
           // CRITIQUE: Toujours remettre isLoading à false
           console.log('🔄 VISIBILITY: Fin de handleVisibilityChange, isLoading -> false');
@@ -197,17 +258,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await supabase.auth.signOut();
         } else if (session?.user) {
           console.log('✅ INIT: Session valide trouvée, chargement des données...');
-          try {
-            await loadUserData(session.user.id);
-          } catch (loadError) {
-            console.error('❌ INIT: Erreur lors du chargement des données utilisateur:', loadError);
-            // Déconnecter proprement en cas d'erreur de chargement
-            await supabase.auth.signOut();
+          
+          // Rafraîchir la session pour valider le jeton
+          console.log('🔄 INIT: Rafraîchissement de la session...');
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshError) {
+            console.error('❌ INIT: Session invalide, déconnexion forcée:', refreshError);
+            try {
+              await supabase.auth.signOut();
+            } catch (signOutError) {
+              console.error('❌ INIT: Erreur lors de la déconnexion forcée:', signOutError);
+            }
             setUser(null);
             setOrganization(null);
             setSessions([]);
             setOrgMembers([]);
             setOrgSessions([]);
+            return;
+          }
+          
+          console.log('✅ INIT: Session rafraîchie avec succès');
+          const validUserId = refreshData.session?.user?.id || session.user.id;
+          
+          try {
+            await loadUserData(validUserId);
+          } catch (loadError) {
+            console.error('❌ INIT: Erreur lors du chargement des données utilisateur:', loadError);
+            // Déconnecter proprement en cas d'erreur de chargement
+            try {
+              await supabase.auth.signOut();
+            } catch (signOutError) {
+              console.error('❌ INIT: Erreur lors de la déconnexion après échec de chargement:', signOutError);
+            }
+            setUser(null);
+            setOrganization(null);
+            setSessions([]);
+            setOrgMembers([]);
+            setOrgSessions([]);
+            await new Promise(resolve => setTimeout(resolve, 200));
           }
         } else {
           console.log('ℹ️ INIT: Aucune session trouvée');
@@ -215,12 +304,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error('❌ INIT: Erreur initialisation session:', error);
         // En cas d'erreur, s'assurer que l'utilisateur est déconnecté
-        await supabase.auth.signOut();
+        try {
+          await supabase.auth.signOut();
+        } catch (signOutError) {
+          console.error('❌ INIT: Erreur lors de la déconnexion d\'urgence:', signOutError);
+        }
         setUser(null);
         setOrganization(null);
         setSessions([]);
         setOrgMembers([]);
         setOrgSessions([]);
+        await new Promise(resolve => setTimeout(resolve, 200));
       } finally {
         console.log('🚀 INIT: Fin de getInitialSession, isLoading -> false');
         setIsLoading(false);
@@ -241,19 +335,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('⏳ AUTH_CHANGE: Attente avant loadUserData...');
           await new Promise(resolve => setTimeout(resolve, 100)); // Réduit à 100ms
           
-          console.log('🚀 AUTH_CHANGE: Début appel loadUserData...');
-          try {
-            await loadUserData(session.user.id);
-          } catch (loadError) {
-            console.error('❌ AUTH_CHANGE: Erreur lors du chargement des données utilisateur:', loadError);
-            // Déconnecter proprement en cas d'erreur de chargement
-            await supabase.auth.signOut();
+          // Rafraîchir la session pour valider le jeton
+          console.log('🔄 AUTH_CHANGE: Rafraîchissement de la session...');
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshError) {
+            console.error('❌ AUTH_CHANGE: Session invalide, déconnexion forcée:', refreshError);
+            try {
+              await supabase.auth.signOut();
+            } catch (signOutError) {
+              console.error('❌ AUTH_CHANGE: Erreur lors de la déconnexion forcée:', signOutError);
+            }
             setUser(null);
             setOrganization(null);
             setSessions([]);
             setOrgMembers([]);
             setOrgSessions([]);
-            throw loadError; // Re-lever l'erreur pour le catch externe
+            return;
+          }
+          
+          console.log('✅ AUTH_CHANGE: Session rafraîchie avec succès');
+          const validUserId = refreshData.session?.user?.id || session.user.id;
+          
+          console.log('🚀 AUTH_CHANGE: Début appel loadUserData...');
+          try {
+            await loadUserData(validUserId);
+          } catch (loadError) {
+            console.error('❌ AUTH_CHANGE: Erreur lors du chargement des données utilisateur:', loadError);
+            // Déconnecter proprement en cas d'erreur de chargement
+            try {
+              await supabase.auth.signOut();
+            } catch (signOutError) {
+              console.error('❌ AUTH_CHANGE: Erreur lors de la déconnexion après échec de chargement:', signOutError);
+            }
+            setUser(null);
+            setOrganization(null);
+            setSessions([]);
+            setOrgMembers([]);
+            setOrgSessions([]);
+            await new Promise(resolve => setTimeout(resolve, 200));
           }
           console.log('✅ AUTH_CHANGE: Fin appel loadUserData avec succès');
         } catch (error) {
@@ -564,10 +684,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('✅ LOGIN: Utilisateur connecté, chargement des données...');
         
         // NOUVEAU: Vérifier l'état de la session immédiatement après la connexion
-        const { data: { session: postLoginSession } } = await supabase.auth.getSession();
-        console.log('🔐 LOGIN: Session après connexion:', postLoginSession?.user?.id);
+        console.log('🔄 LOGIN: Rafraîchissement de la session après connexion...');
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
         
-        await loadUserData(data.user.id);
+        if (refreshError) {
+          console.error('❌ LOGIN: Erreur rafraîchissement session après connexion:', refreshError);
+          throw new Error('Session invalide après connexion');
+        }
+        
+        console.log('✅ LOGIN: Session rafraîchie après connexion:', refreshData.session?.user?.id);
+        const validUserId = refreshData.session?.user?.id || data.user.id;
+        
+        await loadUserData(validUserId);
         console.log('✅ LOGIN: Connexion terminée avec succès');
       } else {
         console.log('⚠️ LOGIN: Pas d\'utilisateur dans la réponse');

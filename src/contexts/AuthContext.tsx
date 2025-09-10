@@ -124,11 +124,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!user || user.id !== session.user.id) {
               // Utilisateur pas encore chargé ou différent, charger les données
               console.log('✅ VISIBILITY: Session valide trouvée, chargement des données utilisateur...');
-              await loadUserData(session.user.id);
+              try {
+                await loadUserData(session.user.id);
+              } catch (loadError) {
+                console.error('❌ VISIBILITY: Erreur lors du chargement des données utilisateur:', loadError);
+                // Déconnecter proprement en cas d'erreur de chargement
+                await supabase.auth.signOut();
+                setUser(null);
+                setOrganization(null);
+                setSessions([]);
+                setOrgMembers([]);
+                setOrgSessions([]);
+              }
             } else {
               // Utilisateur déjà chargé et correspond, juste recharger pour s'assurer que les données sont à jour
               console.log('✅ VISIBILITY: Session valide, rechargement des données...');
-              await loadUserData(session.user.id);
+              try {
+                await loadUserData(session.user.id);
+              } catch (loadError) {
+                console.error('❌ VISIBILITY: Erreur lors du rechargement des données utilisateur:', loadError);
+                // Déconnecter proprement en cas d'erreur de chargement
+                await supabase.auth.signOut();
+                setUser(null);
+                setOrganization(null);
+                setSessions([]);
+                setOrgMembers([]);
+                setOrgSessions([]);
+              }
             }
           } else if (!session && user) {
             // Pas de session mais utilisateur encore dans l'état, déconnecter proprement
@@ -144,12 +166,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } catch (error) {
           console.error('❌ VISIBILITY: Erreur lors de la vérification de visibilité:', error);
-          // En cas d'erreur, nettoyer l'état et déconnecter proprement
-          try {
-            await supabase.auth.signOut();
-          } catch (signOutError) {
-            console.error('❌ VISIBILITY: Erreur lors de la déconnexion:', signOutError);
-          }
+          // En cas d'erreur, déconnecter proprement
+          await supabase.auth.signOut();
           setUser(null);
           setOrganization(null);
           setSessions([]);
@@ -179,7 +197,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await supabase.auth.signOut();
         } else if (session?.user) {
           console.log('✅ INIT: Session valide trouvée, chargement des données...');
-          await loadUserData(session.user.id);
+          try {
+            await loadUserData(session.user.id);
+          } catch (loadError) {
+            console.error('❌ INIT: Erreur lors du chargement des données utilisateur:', loadError);
+            // Déconnecter proprement en cas d'erreur de chargement
+            await supabase.auth.signOut();
+            setUser(null);
+            setOrganization(null);
+            setSessions([]);
+            setOrgMembers([]);
+            setOrgSessions([]);
+          }
         } else {
           console.log('ℹ️ INIT: Aucune session trouvée');
         }
@@ -187,6 +216,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('❌ INIT: Erreur initialisation session:', error);
         // En cas d'erreur, s'assurer que l'utilisateur est déconnecté
         await supabase.auth.signOut();
+        setUser(null);
+        setOrganization(null);
+        setSessions([]);
+        setOrgMembers([]);
+        setOrgSessions([]);
       } finally {
         console.log('🚀 INIT: Fin de getInitialSession, isLoading -> false');
         setIsLoading(false);
@@ -208,12 +242,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await new Promise(resolve => setTimeout(resolve, 100)); // Réduit à 100ms
           
           console.log('🚀 AUTH_CHANGE: Début appel loadUserData...');
-          await loadUserData(session.user.id);
+          try {
+            await loadUserData(session.user.id);
+          } catch (loadError) {
+            console.error('❌ AUTH_CHANGE: Erreur lors du chargement des données utilisateur:', loadError);
+            // Déconnecter proprement en cas d'erreur de chargement
+            await supabase.auth.signOut();
+            setUser(null);
+            setOrganization(null);
+            setSessions([]);
+            setOrgMembers([]);
+            setOrgSessions([]);
+            throw loadError; // Re-lever l'erreur pour le catch externe
+          }
           console.log('✅ AUTH_CHANGE: Fin appel loadUserData avec succès');
         } catch (error) {
           console.error('❌ AUTH_CHANGE: Erreur lors du chargement des données après SIGNED_IN:', error);
-          // En cas d'erreur, déconnecter proprement
-          await supabase.auth.signOut();
         } finally {
           console.log('✅ AUTH_CHANGE: Fin de SIGNED_IN, isLoading -> false');
           setIsLoading(false);
@@ -240,148 +284,118 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadUserData = async (userId: string) => {
     console.log('📊 LOAD_USER: Début chargement des données utilisateur pour:', userId);
+    
+    // Charger le profil utilisateur
+    console.log('📊 LOAD_USER: Requête profil utilisateur...');
+    
+    // Ajouter un timeout à la requête pour éviter les blocages
+    const userProfilePromise = supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Timeout: La requête de profil utilisateur a pris trop de temps'));
+      }, 10000); // 10 secondes de timeout
+    });
+    
+    let userData, userError;
     try {
-      // Charger le profil utilisateur
-      console.log('📊 LOAD_USER: Requête profil utilisateur...');
-      
-      // Ajouter un timeout à la requête pour éviter les blocages
-      const userProfilePromise = supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('Timeout: La requête de profil utilisateur a pris trop de temps'));
-        }, 10000); // 10 secondes de timeout
-      });
-      
-      let userData, userError;
-      try {
-        const result = await Promise.race([userProfilePromise, timeoutPromise]);
-        userData = result.data;
-        userError = result.error;
-      } catch (timeoutError) {
-        console.error('❌ LOAD_USER: Timeout de la requête profil utilisateur:', timeoutError);
-        userError = timeoutError;
-        userData = null;
-      }
+      const result = await Promise.race([userProfilePromise, timeoutPromise]);
+      userData = result.data;
+      userError = result.error;
+    } catch (timeoutError) {
+      console.error('❌ LOAD_USER: Timeout de la requête profil utilisateur:', timeoutError);
+      userError = timeoutError;
+      userData = null;
+    }
 
-      // NOUVEAU: Log détaillé du résultat de la requête
-      console.log('📊 LOAD_USER: Résultat requête profil - userData:', userData, 'userError:', userError);
-      
-      // NOUVEAU: Vérifier l'état de la session auth au moment de la requête
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      console.log('📊 LOAD_USER: Session auth au moment de la requête:', currentSession?.user?.id, 'auth.uid disponible:', !!currentSession?.user?.id);
-      if (userError) {
-        // Gérer spécifiquement l'erreur de récursion infinie RLS
-        if (userError.code === '42P17' || userError.message?.includes('infinite recursion')) {
-          console.error('❌ LOAD_USER: Erreur RLS récursion infinie, déconnexion...', userError);
-          await supabase.auth.signOut();
-          setUser(null);
-          setOrganization(null);
-          setSessions([]);
-          setOrgMembers([]);
-          setOrgSessions([]);
-        }
-        console.error('❌ LOAD_USER: Erreur chargement profil utilisateur:', userError);
-        console.error('❌ LOAD_USER: Détails complets de l\'erreur:', JSON.stringify(userError, null, 2));
-        // En cas d'erreur de chargement, déconnecter proprement
-        try {
-          await supabase.auth.signOut();
-        } catch (signOutError) {
-          console.error('❌ LOAD_USER: Erreur lors de la déconnexion après échec de chargement:', signOutError);
-        }
-        setUser(null);
+    // Log détaillé du résultat de la requête
+    console.log('📊 LOAD_USER: Résultat requête profil - userData:', userData, 'userError:', userError);
+    
+    // Vérifier l'état de la session auth au moment de la requête
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    console.log('📊 LOAD_USER: Session auth au moment de la requête:', currentSession?.user?.id, 'auth.uid disponible:', !!currentSession?.user?.id);
+    
+    if (userError) {
+      console.error('❌ LOAD_USER: Erreur chargement profil utilisateur:', userError);
+      console.error('❌ LOAD_USER: Détails complets de l\'erreur:', JSON.stringify(userError, null, 2));
+      // Lever l'erreur pour que la fonction appelante la gère
+      throw userError;
+    }
+
+    if (!userData) {
+      console.log('⚠️ LOAD_USER: Aucune donnée utilisateur trouvée');
+      throw new Error('Aucune donnée utilisateur trouvée');
+    }
+
+    console.log('✅ LOAD_USER: Données utilisateur chargées avec succès:', userData);
+    const userProfile: User = {
+      id: userData.id,
+      firstName: userData.first_name,
+      lastName: userData.last_name,
+      email: userData.email,
+      phone: userData.phone || '',
+      credits: userData.credits,
+      simulationsUsed: userData.simulations_used,
+      organizationId: userData.organization_id,
+      organizationRole: userData.organization_role as 'owner' | 'member',
+      createdAt: userData.created_at,
+      updatedAt: userData.updated_at
+    };
+
+    setUser(userProfile);
+
+    // Charger l'organisation si l'utilisateur en fait partie
+    if (userData.organization_id) {
+      console.log('📊 LOAD_USER: Chargement organisation:', userData.organization_id);
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', userData.organization_id)
+        .single();
+
+      if (!orgError && orgData) {
+        console.log('✅ LOAD_USER: Organisation chargée:', orgData);
+        const orgProfile: Organization = {
+          id: orgData.id,
+          name: orgData.name,
+          code: orgData.code,
+          ownerId: orgData.owner_id,
+          credits: orgData.credits,
+          simulationsUsed: orgData.simulations_used,
+          createdAt: orgData.created_at,
+          updatedAt: orgData.updated_at
+        };
+        setOrganization(orgProfile);
+
+        // Load organization members and sessions
+        console.log('📊 LOAD_USER: Chargement membres et sessions organisation...');
+        await loadOrgMembers(orgData.id);
+        await loadOrgSessions(orgData.id);
+        console.log('✅ LOAD_USER: Membres et sessions organisation chargés');
+      } else {
+        console.log('⚠️ LOAD_USER: Erreur chargement organisation:', orgError);
+        // Réinitialiser l'organisation si erreur de chargement
         setOrganization(null);
-        setSessions([]);
         setOrgMembers([]);
         setOrgSessions([]);
       }
-
-      if (userData) {
-        console.log('✅ LOAD_USER: Données utilisateur chargées avec succès:', userData);
-        const userProfile: User = {
-          id: userData.id,
-          firstName: userData.first_name,
-          lastName: userData.last_name,
-          email: userData.email,
-          phone: userData.phone || '',
-          credits: userData.credits,
-          simulationsUsed: userData.simulations_used,
-          organizationId: userData.organization_id,
-          organizationRole: userData.organization_role as 'owner' | 'member',
-          createdAt: userData.created_at,
-          updatedAt: userData.updated_at
-        };
-
-        setUser(userProfile);
-
-        // Charger l'organisation si l'utilisateur en fait partie
-        if (userData.organization_id) {
-          console.log('📊 LOAD_USER: Chargement organisation:', userData.organization_id);
-          const { data: orgData, error: orgError } = await supabase
-            .from('organizations')
-            .select('*')
-            .eq('id', userData.organization_id)
-            .single();
-
-          if (!orgError && orgData) {
-            console.log('✅ LOAD_USER: Organisation chargée:', orgData);
-            const orgProfile: Organization = {
-              id: orgData.id,
-              name: orgData.name,
-              code: orgData.code,
-              ownerId: orgData.owner_id,
-              credits: orgData.credits,
-              simulationsUsed: orgData.simulations_used,
-              createdAt: orgData.created_at,
-              updatedAt: orgData.updated_at
-            };
-            setOrganization(orgProfile);
-
-            // Load organization members and sessions
-            console.log('📊 LOAD_USER: Chargement membres et sessions organisation...');
-            await loadOrgMembers(orgData.id);
-            await loadOrgSessions(orgData.id);
-            console.log('✅ LOAD_USER: Membres et sessions organisation chargés');
-          } else {
-            console.log('⚠️ LOAD_USER: Erreur chargement organisation:', orgError);
-            // Réinitialiser l'organisation si erreur de chargement
-            setOrganization(null);
-            setOrgMembers([]);
-            setOrgSessions([]);
-          }
-        } else {
-          console.log('ℹ️ LOAD_USER: Pas d\'organisation pour cet utilisateur');
-          // Pas d'organisation, réinitialiser les états liés
-          setOrganization(null);
-          setOrgMembers([]);
-          setOrgSessions([]);
-        }
-
-        // Charger les sessions de l'utilisateur
-        console.log('📊 LOAD_USER: Chargement sessions utilisateur...');
-        await loadUserSessions(userId);
-        console.log('✅ LOAD_USER: Sessions utilisateur chargées');
-      } else {
-        console.log('⚠️ LOAD_USER: Aucune donnée utilisateur trouvée');
-      }
-    } catch (error) {
-      console.error('❌ LOAD_USER: Erreur critique lors du chargement des données:', error);
-      // En cas d'erreur critique, déconnecter proprement
-      try {
-        await supabase.auth.signOut();
-      } catch (signOutError) {
-        console.error('❌ LOAD_USER: Erreur lors de la déconnexion après erreur critique:', signOutError);
-      }
-      setUser(null);
+    } else {
+      console.log('ℹ️ LOAD_USER: Pas d\'organisation pour cet utilisateur');
+      // Pas d'organisation, réinitialiser les états liés
       setOrganization(null);
-      setSessions([]);
       setOrgMembers([]);
       setOrgSessions([]);
     }
+
+    // Charger les sessions de l'utilisateur
+    console.log('📊 LOAD_USER: Chargement sessions utilisateur...');
+    await loadUserSessions(userId);
+    console.log('✅ LOAD_USER: Sessions utilisateur chargées');
+    
     console.log('📊 LOAD_USER: Fin de loadUserData');
   };
 

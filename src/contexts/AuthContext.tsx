@@ -96,9 +96,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Charger l'état de l'essai gratuit depuis localStorage
     setFreeTrialUsed(localStorage.getItem('ring_academy_free_trial_used') === 'true');
 
+    // Gestionnaire pour rafraîchir la session quand l'onglet redevient visible
+    const handleVisibilityChange = async () => {
+      if (!document.hidden && user) {
+        try {
+          console.log('🔄 Onglet redevenu visible, vérification de la session...');
+          const { data: { session }, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error('❌ Erreur lors de la vérification de session:', error);
+            // Déconnexion propre en cas d'erreur de session
+            await supabase.auth.signOut();
+            return;
+          }
+          
+          if (session?.user && user.id === session.user.id) {
+            // Session valide, recharger les données utilisateur pour s'assurer qu'elles sont à jour
+            console.log('✅ Session valide, rechargement des données...');
+            await loadUserData(session.user.id);
+          } else if (!session) {
+            // Pas de session valide, déconnecter proprement
+            console.log('⚠️ Pas de session valide, déconnexion...');
+            await supabase.auth.signOut();
+          }
+        } catch (error) {
+          console.error('❌ Erreur lors de la vérification de visibilité:', error);
+          // En cas d'erreur, déconnecter proprement
+          await supabase.auth.signOut();
+        }
+      }
+    };
+
+    // Ajouter l'écouteur d'événement
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // Récupérer la session actuelle
     const getInitialSession = async () => {
       try {
+        setIsLoading(true);
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Erreur récupération session:', error);
@@ -120,8 +155,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Écouter les changements d'état d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 Auth state change:', event, session?.user?.id);
       
       if (event === 'SIGNED_IN' && session?.user) {
+        setIsLoading(true);
         await loadUserData(session.user.id);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
@@ -135,11 +172,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       subscription.unsubscribe();
     };
   }, []);
 
   const loadUserData = async (userId: string) => {
+    console.log('📊 Chargement des données utilisateur pour:', userId);
     try {
       // Charger le profil utilisateur
       const { data: userData, error: userError } = await supabase
@@ -151,6 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userError) {
         // Gérer spécifiquement l'erreur de récursion infinie RLS
         if (userError.code === '42P17' || userError.message?.includes('infinite recursion')) {
+          console.error('❌ Erreur RLS récursion infinie, déconnexion...');
           await supabase.auth.signOut();
           setUser(null);
           return;
@@ -159,10 +199,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (userError.code === '42P17' || userError.message?.includes('infinite recursion')) {
           await logout();
         }
+        console.error('❌ Erreur chargement profil utilisateur:', userError);
+        // En cas d'erreur de chargement, déconnecter proprement
+        await supabase.auth.signOut();
         return;
       }
 
       if (userData) {
+        console.log('✅ Données utilisateur chargées avec succès');
         const userProfile: User = {
           id: userData.id,
           firstName: userData.first_name,
@@ -210,6 +254,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await loadUserSessions(userId);
       }
     } catch (error) {
+      console.error('❌ Erreur critique lors du chargement des données:', error);
+      // En cas d'erreur critique, déconnecter proprement
+      await supabase.auth.signOut();
     }
   };
 
@@ -334,6 +381,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
+    setError(''); // Réinitialiser les erreurs précédentes
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -349,6 +397,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await loadUserData(data.user.id);
       }
     } catch (error) {
+      console.error('❌ Erreur lors de la connexion:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -433,13 +482,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async (): Promise<void> => {
+    setIsLoading(true);
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
+        console.error('❌ Erreur lors de la déconnexion:', error);
       }
       
       // Les états seront réinitialisés par onAuthStateChange
     } catch (error) {
+      console.error('❌ Erreur critique lors de la déconnexion:', error);
+    } finally {
+      // S'assurer que l'état de chargement est réinitialisé même en cas d'erreur
+      setIsLoading(false);
     }
   };
 

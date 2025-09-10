@@ -630,6 +630,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await loadUserSessions(userId);
     console.log('✅ LOAD_USER: Sessions utilisateur chargées');
     
+    // Log de l'état final de l'utilisateur
+    console.log('👤 LOAD_USER: État final de l\'utilisateur après loadUserData:', {
+      userExists: !!userProfile,
+      userId: userProfile?.id || 'null',
+      userEmail: userProfile?.email || 'null',
+      organizationId: userProfile?.organizationId || 'null',
+      organizationRole: userProfile?.organizationRole || 'null'
+    });
+    
     console.log('📊 LOAD_USER: Fin de loadUserData');
   };
 
@@ -944,15 +953,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setOrganization(null);
       setSessions([]);
       setOrgMembers([]);
-      // Log de l'état final de l'utilisateur
-      console.log('👤 LOAD_USER: État final de l\'utilisateur après loadUserData:', {
-        userExists: !!user,
-        userId: user?.id || 'null',
-        userEmail: user?.email || 'null',
-        organizationId: user?.organizationId || 'null',
-        organizationRole: user?.organizationRole || 'null'
-      });
-      
       setOrgSessions([]);
     } finally {
       // S'assurer que l'état de chargement est réinitialisé même en cas d'erreur

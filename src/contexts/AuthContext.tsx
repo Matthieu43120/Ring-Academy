@@ -126,60 +126,6 @@ interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper function to get Supabase project reference from URL
-const getSupabaseProjectRef = () => {
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  if (!url) {
-    console.error('VITE_SUPABASE_URL is not defined');
-    return 'default'; // Fallback
-  }
-  const match = url.match(/https:\/\/(.*?)\.supabase\.co/);
-  return match ? match[1] : 'default';
-};
-
-// Function to manually clear Supabase tokens from localStorage
-const clearSupabaseTokensFromLocalStorage = () => {
-  console.log('🧹 CLEANUP: Début nettoyage manuel du localStorage...');
-  const supabaseProjectRef = getSupabaseProjectRef();
-  const keysToRemove = [
-    `sb-${supabaseProjectRef}-auth-token`,
-    `sb-${supabaseProjectRef}-auth-refresh-token`,
-    `sb-${supabaseProjectRef}-auth-pkce-code-verifier`,
-    `sb-${supabaseProjectRef}-auth-code-verifier`,
-    `sb-${supabaseProjectRef}-auth-token-expires-at`,
-    `sb-${supabaseProjectRef}-auth-token-type`,
-    `sb-${supabaseProjectRef}-auth-user`,
-    `sb-${supabaseProjectRef}-auth-session`,
-  ];
-
-  console.log('🧹 CLEANUP: Clés Supabase présentes AVANT nettoyage:', Object.keys(localStorage).filter(key => key.startsWith(`sb-${supabaseProjectRef}-`)));
-  console.log('🧹 CLEANUP: Clés ciblées pour suppression:', keysToRemove);
-
-  let cleanedSuccessfully = true;
-  keysToRemove.forEach(key => {
-    if (localStorage.getItem(key)) {
-      localStorage.removeItem(key);
-      if (localStorage.getItem(key) === null) {
-        console.log(`🧹 CLEANUP: ✅ Clé supprimée: ${key}`);
-      } else {
-        console.error(`🧹 CLEANUP: ❌ Échec de suppression de la clé: ${key}`);
-        cleanedSuccessfully = false;
-      }
-    } else {
-      console.log(`🧹 CLEANUP: ℹ️ Clé non trouvée (déjà absente): ${key}`);
-    }
-  });
-
-  const remainingKeys = Object.keys(localStorage).filter(key => key.startsWith(`sb-${supabaseProjectRef}-`));
-  if (remainingKeys.length === 0) {
-    console.log('🧹 CLEANUP: ✅ Nettoyage du localStorage terminé. Aucune clé Supabase restante.');
-  } else {
-    console.error('🧹 CLEANUP: ❌ Nettoyage du localStorage incomplet. Clés restantes:', remainingKeys);
-    cleanedSuccessfully = false;
-  }
-  return cleanedSuccessfully;
-};
-
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -316,6 +262,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } else if (!session && user) {
             // Pas de session mais utilisateur encore dans l'état, déconnecter proprement
             console.log('⚠️ VISIBILITY: Pas de session valide mais utilisateur encore connecté, déconnexion...');
+            clearSupabaseTokensFromLocalStorage();
             setUser(null);
             setOrganization(null);
             setSessions([]);
@@ -359,6 +306,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('🚀 INIT: Session initiale récupérée:', session?.user?.id, 'error:', error);
         if (error) {
           console.error('❌ INIT: Erreur récupération session:', error);
+          clearSupabaseTokensFromLocalStorage(); // Nettoyer les jetons en cas d'erreur
           // Si le token de rafraîchissement est invalide, déconnecter l'utilisateur
           await supabase.auth.signOut();
         } else if (session?.user) {
@@ -498,6 +446,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else if (event === 'SIGNED_OUT') {
         console.log('🚪 AUTH_CHANGE: SIGNED_OUT détecté, nettoyage des états...');
+        clearSupabaseTokensFromLocalStorage();
         setUser(null);
         setOrganization(null);
         setSessions([]);
@@ -507,6 +456,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('🚪 AUTH_CHANGE: États nettoyés après SIGNED_OUT');
       } else {
         console.log('ℹ️ AUTH_CHANGE: Événement non géré:', event);
+        // Pour les événements d'erreur ou non gérés, nettoyer aussi
+        if (event === 'SIGNED_OUT' || event.includes('ERROR')) {
+          clearSupabaseTokensFromLocalStorage();
+        }
       }
     });
 
@@ -629,15 +582,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('📊 LOAD_USER: Chargement sessions utilisateur...');
     await loadUserSessions(userId);
     console.log('✅ LOAD_USER: Sessions utilisateur chargées');
-    
-    // Log de l'état final de l'utilisateur
-    console.log('👤 LOAD_USER: État final de l\'utilisateur après loadUserData:', {
-      userExists: !!userProfile,
-      userId: userProfile?.id || 'null',
-      userEmail: userProfile?.email || 'null',
-      organizationId: userProfile?.organizationId || 'null',
-      organizationRole: userProfile?.organizationRole || 'null'
-    });
     
     console.log('📊 LOAD_USER: Fin de loadUserData');
   };
@@ -916,7 +860,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (profileError: any) {
         console.error('❌ REGISTER: Erreur création profil:', profileError);
         // Si l'insertion du profil échoue, supprimer l'utilisateur d'authentification
+        // and clear tokens to avoid inconsistent state
         await supabase.auth.signOut();
+        clearSupabaseTokensFromLocalStorage();
         // Nettoyage manuel du localStorage après signOut
         clearSupabaseTokensFromLocalStorage();
         throw new Error(profileError?.message || 'Erreur lors de la création du profil utilisateur via RPC');
@@ -938,6 +884,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async (): Promise<void> => {
     console.log('🚪 LOGOUT: Début déconnexion...');
     setIsLoading(true);
+    clearSupabaseTokensFromLocalStorage(); // Nettoyer avant la déconnexion
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
@@ -953,6 +900,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setOrganization(null);
       setSessions([]);
       setOrgMembers([]);
+      // Log de l'état final de l'utilisateur
+      console.log('👤 LOAD_USER: État final de l\'utilisateur après loadUserData:', {
+        userExists: !!user,
+        userId: user?.id || 'null',
+        userEmail: user?.email || 'null',
+        organizationId: user?.organizationId || 'null',
+        organizationRole: user?.organizationRole || 'null'
+      });
+      
       setOrgSessions([]);
     } finally {
       // S'assurer que l'état de chargement est réinitialisé même en cas d'erreur
@@ -1122,6 +1078,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('✅ SAVE_SESSION: Session sauvegardée:', sessionData.id);
         const newSession: SessionData = {
           id: sessionData.id,
+          userId: sessionData.user_id,
           target: sessionData.target,
           difficulty: sessionData.difficulty,
           score: sessionData.score,

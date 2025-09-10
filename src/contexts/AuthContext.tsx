@@ -126,6 +126,60 @@ interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper function to get Supabase project reference from URL
+const getSupabaseProjectRef = () => {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  if (!url) {
+    console.error('VITE_SUPABASE_URL is not defined');
+    return 'default'; // Fallback
+  }
+  const match = url.match(/https:\/\/(.*?)\.supabase\.co/);
+  return match ? match[1] : 'default';
+};
+
+// Function to manually clear Supabase tokens from localStorage
+const clearSupabaseTokensFromLocalStorage = () => {
+  console.log('🧹 CLEANUP: Début nettoyage manuel du localStorage...');
+  const supabaseProjectRef = getSupabaseProjectRef();
+  const keysToRemove = [
+    `sb-${supabaseProjectRef}-auth-token`,
+    `sb-${supabaseProjectRef}-auth-refresh-token`,
+    `sb-${supabaseProjectRef}-auth-pkce-code-verifier`,
+    `sb-${supabaseProjectRef}-auth-code-verifier`,
+    `sb-${supabaseProjectRef}-auth-token-expires-at`,
+    `sb-${supabaseProjectRef}-auth-token-type`,
+    `sb-${supabaseProjectRef}-auth-user`,
+    `sb-${supabaseProjectRef}-auth-session`,
+  ];
+
+  console.log('🧹 CLEANUP: Clés Supabase présentes AVANT nettoyage:', Object.keys(localStorage).filter(key => key.startsWith(`sb-${supabaseProjectRef}-`)));
+  console.log('🧹 CLEANUP: Clés ciblées pour suppression:', keysToRemove);
+
+  let cleanedSuccessfully = true;
+  keysToRemove.forEach(key => {
+    if (localStorage.getItem(key)) {
+      localStorage.removeItem(key);
+      if (localStorage.getItem(key) === null) {
+        console.log(`🧹 CLEANUP: ✅ Clé supprimée: ${key}`);
+      } else {
+        console.error(`🧹 CLEANUP: ❌ Échec de suppression de la clé: ${key}`);
+        cleanedSuccessfully = false;
+      }
+    } else {
+      console.log(`🧹 CLEANUP: ℹ️ Clé non trouvée (déjà absente): ${key}`);
+    }
+  });
+
+  const remainingKeys = Object.keys(localStorage).filter(key => key.startsWith(`sb-${supabaseProjectRef}-`));
+  if (remainingKeys.length === 0) {
+    console.log('🧹 CLEANUP: ✅ Nettoyage du localStorage terminé. Aucune clé Supabase restante.');
+  } else {
+    console.error('🧹 CLEANUP: ❌ Nettoyage du localStorage incomplet. Clés restantes:', remainingKeys);
+    cleanedSuccessfully = false;
+  }
+  return cleanedSuccessfully;
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

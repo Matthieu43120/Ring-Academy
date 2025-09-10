@@ -117,7 +117,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setSessions([]);
             setOrgMembers([]);
             setOrgSessions([]);
-            return;
           }
           
           if (session?.user) {
@@ -244,11 +243,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // Charger le profil utilisateur
       console.log('📊 LOAD_USER: Requête profil utilisateur...');
-      const { data: userData, error: userError } = await supabase
+      
+      // Ajouter un timeout à la requête pour éviter les blocages
+      const userProfilePromise = supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single();
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Timeout: La requête de profil utilisateur a pris trop de temps'));
+        }, 10000); // 10 secondes de timeout
+      });
+      
+      let userData, userError;
+      try {
+        const result = await Promise.race([userProfilePromise, timeoutPromise]);
+        userData = result.data;
+        userError = result.error;
+      } catch (timeoutError) {
+        console.error('❌ LOAD_USER: Timeout de la requête profil utilisateur:', timeoutError);
+        userError = timeoutError;
+        userData = null;
+      }
 
       // NOUVEAU: Log détaillé du résultat de la requête
       console.log('📊 LOAD_USER: Résultat requête profil - userData:', userData, 'userError:', userError);

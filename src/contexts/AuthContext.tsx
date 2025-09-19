@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { SessionResult } from '../pages/Training';
 import { TrainingConfig } from '../pages/Training';
@@ -129,8 +129,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   });
 
+  const isFetchingData = useRef(false); // Protection contre les appels concurrents
+
   // Function to load user data from Supabase
   const loadUserData = useCallback(async (supabaseUser: any) => {
+    if (isFetchingData.current) {
+      console.log('⚠️ LOAD_USER: Une récupération de données est déjà en cours. Annulation de l\'appel concurrent.');
+      return;
+    }
+
+    isFetchingData.current = true;
     console.log('⏳ LOAD_USER: Début du chargement des données utilisateur pour', supabaseUser?.id);
     setIsLoading(true);
     
@@ -230,8 +238,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setOrganization(null);
       setSessions([]);
-      clearSupabaseTokensFromLocalStorage();
     } finally {
+      isFetchingData.current = false;
       setIsLoading(false);
       console.log('✅ LOAD_USER: Fin du processus loadUserData. isLoading est maintenant false.');
     }
@@ -258,14 +266,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('ℹ️ INIT: Aucune session trouvée.');
           setUser(null);
           setOrganization(null);
-          setSessions([]);
         }
       } catch (error) {
         console.error('❌ INIT: Erreur critique lors de la récupération de la session initiale:', error);
         setUser(null);
         setOrganization(null);
         setSessions([]);
-        clearSupabaseTokensFromLocalStorage();
       } finally {
         setIsLoading(false);
         console.log('✅ INIT: Fin de la récupération de la session initiale. isLoading est maintenant false.');
@@ -321,14 +327,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('ℹ️ AUTH_CHANGE: Aucun utilisateur ou session après l\'événement, nettoyage...');
           setUser(null);
           setOrganization(null);
-          setSessions([]);
         }
       } catch (error) {
         console.error('❌ AUTH_CHANGE: Erreur lors du traitement de l\'état d\'authentification:', error);
         setUser(null);
         setOrganization(null);
         setSessions([]);
-        clearSupabaseTokensFromLocalStorage();
       } finally {
         setIsLoading(false);
         console.log(`✅ AUTH_CHANGE: Fin du traitement de l'état d'authentification. isLoading est maintenant false.`);
@@ -363,7 +367,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log('ℹ️ VISIBILITY: Session expirée ou invalide, nettoyage des données utilisateur...');
             setUser(null);
             setOrganization(null);
-            setSessions([]);
           } else {
             console.log('ℹ️ VISIBILITY: Aucune session valide et aucun utilisateur connecté.');
           }
@@ -372,7 +375,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
           setOrganization(null);
           setSessions([]);
-          clearSupabaseTokensFromLocalStorage();
         } finally {
           setIsLoading(false);
           console.log('✅ VISIBILITY: Fin de la vérification de la session. isLoading est maintenant false.');

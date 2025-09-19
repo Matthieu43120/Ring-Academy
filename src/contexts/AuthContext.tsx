@@ -718,7 +718,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           organization_role: null,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', memberId);
+        .eq('id', memberId)
         .eq('organization_id', organization.id);
 
       if (error) {

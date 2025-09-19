@@ -58,14 +58,14 @@ const clearSupabaseTokensFromLocalStorage = () => {
 };
 
 // Utility function for fetch with timeout
-const fetchWithTimeout = async <T>(promise: Promise<T>, timeout: number): Promise<T> => {
+async function fetchWithTimeout<T>(promise: Promise<T>, timeout: number): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
       setTimeout(() => reject(new Error(`Timeout after ${timeout} ms`)), timeout)
     )
   ]);
-};
+}
 
 interface UserProfile {
   id: string;

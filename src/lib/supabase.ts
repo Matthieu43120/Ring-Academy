@@ -8,7 +8,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Please check your .env file and ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage: sessionStorage, // Utiliser sessionStorage au lieu de localStorage
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});
 
 // Types pour TypeScript basés sur le schéma de la base de données
 export interface Database {

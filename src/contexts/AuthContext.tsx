@@ -347,7 +347,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (session?.user) {
             console.log('✅ VISIBILITY: Session valide trouvée, rafraîchissement des données...');
-            await loadUserData(refreshedSession.user);
+            await loadUserData(session.user);
           } else {
             console.log('ℹ️ VISIBILITY: Aucune session valide, nettoyage des données utilisateur...');
             await loadUserData(null); // Clear state

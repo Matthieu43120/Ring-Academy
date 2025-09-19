@@ -247,7 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setOrganization(null);
       setSessions([]);
-      isFetchingData.current = false;
+    } finally {
       isFetchingData.current = false;
       setIsLoading(false);
       console.log('✅ loadUserData: Fin du processus loadUserData. isLoading est maintenant false.');
@@ -265,8 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error) {
           console.error('❌ INIT: Erreur lors de la récupération de la session:', error);
           throw error;
-        
-        if (session?.user) {
+        }
         
         if (session?.user) {
           console.log('✅ INIT: Session trouvée, chargement des données utilisateur...');
@@ -274,6 +273,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           console.log('ℹ️ INIT: Aucune session trouvée.');
           await loadUserData(null);
+        }
+      } catch (error) {
         console.error('❌ INIT: Erreur critique lors de la récupération de la session initiale:', error);
         setUser(null);
         setOrganization(null);
@@ -333,10 +334,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('ℹ️ AUTH_CHANGE: Aucun utilisateur ou session après l\'événement, nettoyage...');
           setUser(null);
           setOrganization(null);
+          setSessions([]);
         }
       } catch (error) {
         console.error('❌ AUTH_CHANGE: Erreur lors du traitement de l\'état d\'authentification:', error);
         await loadUserData(null);
+      } finally {
         setIsLoading(false);
         console.log(`✅ AUTH_CHANGE: Fin du traitement de l'état d'authentification. isLoading est maintenant false.`);
       }
@@ -370,6 +373,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log('ℹ️ VISIBILITY: Session expirée ou invalide, nettoyage des données utilisateur...');
             setUser(null);
             setOrganization(null);
+            setSessions([]);
           } else {
             console.log('ℹ️ VISIBILITY: Aucune session valide et aucun utilisateur connecté.');
           }
@@ -380,7 +384,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSessions([]);
         } finally {
           setIsLoading(false);
-        console.log('✅ INIT: Fin de la récupération de la session initiale.');
+          console.log('✅ VISIBILITY: Fin de la vérification de la session.');
+        }
       }
     };
 
@@ -408,6 +413,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.user) {
         console.log('✅ LOGIN: Connexion réussie, chargement des données...');
         await loadUserData(data.user);
+      } else {
+        console.log('ℹ️ LOGIN: Connexion réussie mais pas de user, nettoyage...');
+        await loadUserData(null);
       }
     } catch (error) {
       console.error('❌ LOGIN: Erreur lors de la connexion:', error);
@@ -495,10 +503,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('✅ REGISTER: Profil utilisateur inséré avec succès');
       
+      // If registration is successful and user is signed in, load their data
+      if (data.user) {
+        await loadUserData(data.user);
+      }
+      
     } catch (error) {
       console.error('❌ REGISTER: Erreur lors de l\'inscription:', error);
       throw error;
     } finally {
+      setIsLoading(false);
       console.log('✅ REGISTER: Fin du processus d\'inscription.');
     }
   }, [loadUserData]);
@@ -586,22 +600,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Consume credit from organization
         const { error: rpcError } = await supabase.rpc('consume_organization_simulation', {
           p_organization_id: user.organizationId,
-      console.log(`🔄 AUTH_CHANGE: Auth state change: ${event} userId: ${session?.user?.id || 'N/A'}`);
+        });
       
         if (rpcError) {
           console.error('❌ USE_CREDIT: Erreur RPC lors de la consommation du crédit d\'organisation:', rpcError);
           throw rpcError;
         }
         console.log('✅ USE_CREDIT: Crédit d\'organisation consommé');
+      } else {
         // Consume credit from individual user
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-          if (session?.user) {
-            console.log(`✅ AUTH_CHANGE: ${event} détecté, chargement des données...`);
-            await loadUserData(session.user);
+        const { data: updatedUser, error: fetchError } = await supabase
+          .from('users')
+          .select('credits, simulations_used')
+          .eq('id', user.id)
+          .single();
+
+        if (fetchError) {
+          console.error('❌ USE_CREDIT: Erreur de récupération des données utilisateur:', fetchError);
+          throw fetchError;
+        }
+
+        let newCredits = updatedUser.credits;
         let newSimulationsUsed = updatedUser.simulations_used + 1;
-            console.log(`ℹ️ AUTH_CHANGE: ${event} détecté mais pas de session.user, nettoyage...`);
-            await loadUserData(null);
-          }
+
+        if (newSimulationsUsed >= newCredits * 3) {
           newCredits -= 1;
           newSimulationsUsed = 0;
         }
@@ -627,7 +649,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (currentUser) {
         await loadUserData(currentUser);
       }
-          console.error('❌ USE_CREDIT: Erreur de mise à jour des crédits utilisateur:', updateError);
+
+      return true;
     } catch (error) {
       console.error('❌ USE_CREDIT: Erreur lors de la consommation du crédit:', error);
       return false;
@@ -662,6 +685,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name,
           code: orgCode,
           owner_id: user.id,
+          credits: user.credits,
           simulations_used: user.credits * 3 - user.simulationsLeft,
         })
         .select()
@@ -707,37 +731,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getOrgMembers = useCallback(() => {
     // Cette fonction nécessiterait une requête à la base de données
     // Pour l'instant, retourner un tableau vide
+    console.warn('⚠️ getOrgMembers: Cette fonction nécessite une implémentation pour récupérer les membres de l\'organisation.');
     return [];
   }, []);
 
-      console.log('✅ CREATE_ORG: Fin du processus de création d\'organisation.');
+  const removeMember = useCallback(async (memberId: string) => {
+    if (!user || user.organizationRole !== 'owner') {
       throw new Error('Accès non autorisé.');
     }
 
     console.log('👥 REMOVE_MEMBER: Suppression du membre:', memberId);
-    console.warn('⚠️ getOrgMembers: Cette fonction nécessite une implémentation pour récupérer les membres de l\'organisation.');
-          clearSupabaseTokensFromLocalStorage();
+    setIsLoading(true);
+    
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          organization_id: null,
+          organization_role: null,
+          updated_at: new Date().toISOString(),
         })
-          console.log(`ℹ️ AUTH_CHANGE: Événement ${event} non géré ou pas de session.user, nettoyage...`);
-          await loadUserData(null);
+        .eq('id', memberId);
+
+      if (error) {
+        console.error('❌ REMOVE_MEMBER: Erreur lors de la suppression du membre:', error);
         throw error;
       }
 
-        await loadUserData(null);
+      console.log('✅ REMOVE_MEMBER: Membre supprimé avec succès');
+      
+      // Refresh user data
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (currentUser) {
+        await loadUserData(currentUser);
+      }
     } catch (error) {
       console.error('❌ REMOVE_MEMBER: Erreur lors de la suppression du membre:', error);
       throw error;
+    } finally {
       setIsLoading(false);
-      authListener?.subscription?.unsubscribe();
+      console.log('✅ REMOVE_MEMBER: Fin du processus de suppression.');
     }
-  }, [loadUserData]);
+  }, [user, loadUserData]);
 
   const getOrgSessions = useCallback(() => {
     // Cette fonction nécessiterait une requête à la base de données
     // Pour l'instant, retourner un tableau vide
+    console.warn('⚠️ getOrgSessions: Cette fonction nécessite une implémentation pour récupérer les sessions de l\'organisation.');
     return [];
   }, []);
+
+  const addCredits = useCallback(async (amount: number) => {
+    if (!user) throw new Error('Utilisateur non connecté.');
 
     console.log('💰 ADD_CREDITS: Ajout de crédits individuels:', amount);
     setIsLoading(true);
@@ -745,28 +790,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error } = await supabase
         .from('users')
-          if (session?.user) {
+        .update({
           credits: user.credits + amount, 
           updated_at: new Date().toISOString() 
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('❌ ADD_CREDITS: Erreur lors de l\'ajout de crédits:', error);
+        throw error;
       }
-            console.log('ℹ️ VISIBILITY: Aucune session valide, nettoyage des données utilisateur...');
-            await loadUserData(null);
+      
       console.log('✅ ADD_CREDITS: Crédits ajoutés avec succès');
       
-      console.log('✅ REMOVE_MEMBER: Fin du processus de suppression.');
+      // Refresh user data
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        await loadUserData(currentUser);
+      }
+    } catch (error) {
       console.error('❌ ADD_CREDITS: Erreur lors de l\'ajout de crédits:', error);
-          console.log('✅ VISIBILITY: Fin de la vérification de la session.');
+      throw error;
+    } finally {
       setIsLoading(false);
       console.log('✅ ADD_CREDITS: Fin du processus d\'ajout de crédits. isLoading est maintenant false.');
-    console.warn('⚠️ getOrgSessions: Cette fonction nécessite une implémentation pour récupérer les sessions de l\'organisation.');
+    }
+  }, [user, loadUserData]);
 
   const addCreditsToOrg = useCallback(async (amount: number) => {
     if (!user || user.organizationRole !== 'owner' || !organization) {
       throw new Error('Accès non autorisé.');
-  }, [loadUserData]);
+    }
 
     console.log('🏢 ADD_ORG_CREDITS: Ajout de crédits à l\'organisation:', amount);
     setIsLoading(true);
+    
+    try {
       const { error: rpcError } = await supabase.rpc('add_organization_credits', {
         org_id: organization.id,
         amount: amount,
@@ -782,17 +841,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (currentUser) {
         await loadUserData(currentUser);
-      } else {
-        console.log('ℹ️ LOGIN: Connexion réussie mais pas de user, nettoyage...');
-        await loadUserData(null);
       }
     } catch (error) {
       console.error('❌ ADD_ORG_CREDITS: Erreur lors de l\'ajout de crédits à l\'organisation:', error);
       throw error;
     } finally {
-      console.log('✅ LOGIN: Fin du processus de connexion.');
+      setIsLoading(false);
       console.log('✅ ADD_ORG_CREDITS: Fin du processus d\'ajout de crédits d\'organisation. isLoading est maintenant false.');
-      console.log('✅ ADD_CREDITS: Fin du processus d\'ajout de crédits.');
+    }
+  }, [user, organization, loadUserData]);
 
   const value = useMemo(() => ({
     user,
@@ -802,6 +859,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     register,
     logout,
+    getCreditsInfo,
+    saveSession,
+    useCreditForSimulation,
     canUseFreeTrial,
     useFreeTrial,
     createOrg,
@@ -824,7 +884,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     canUseFreeTrial,
     useFreeTrial,
     createOrg,
-      console.log('✅ ADD_ORG_CREDITS: Fin du processus d\'ajout de crédits d\'organisation.');
+    getOrgMembers,
+    removeMember,
     getOrgSessions,
     addCredits,
     addCreditsToOrg,
@@ -840,7 +901,3 @@ export const useAuth = () => {
   }
   return context;
 };
-      // If registration is successful and user is signed in, load their data
-      if (data.user) {
-        await loadUserData(data.user);
-      }

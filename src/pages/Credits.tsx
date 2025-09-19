@@ -115,8 +115,8 @@ function Credits() {
 
       const { url } = await response.json();
       
-      // Rediriger vers Stripe Checkout
-      window.location.href = url;
+      // Ouvrir Stripe Checkout dans un nouvel onglet
+      window.open(url, '_blank');
       
     } catch (error) {
       alert('Erreur lors de la création du paiement. Veuillez réessayer.');

@@ -21,9 +21,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Loader2,
-  ChevronDown,
-  ChevronUp
+  Loader2
 } from 'lucide-react';
 
 // Définir les interfaces pour les données de l'organisation
@@ -62,7 +60,6 @@ function Dashboard() {
   const [currentView, setCurrentView] = useState<'personal' | 'organization'>('personal');
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [selectedSessionDetail, setSelectedSessionDetail] = useState<any | null>(null);
-  const [showPersonalSessions, setShowPersonalSessions] = useState(false);
 
   // NOUVEAUX ÉTATS pour les données de l'organisation
   const [orgMembersState, setOrgMembersState] = useState<UserProfile[]>([]);
@@ -584,24 +581,7 @@ function Dashboard() {
             {/* Historique des sessions personnelles */}
             <div className="bg-white rounded-xl shadow-lg border border-gray-200">
               <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-gray-900">Mes sessions</h2>
-                  {sessions.length > 0 && (
-                    <button
-                      onClick={() => setShowPersonalSessions(!showPersonalSessions)}
-                      className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
-                    >
-                      <span className="text-sm font-medium">
-                        {showPersonalSessions ? 'Masquer' : 'Afficher'} ({sessions.length})
-                      </span>
-                      {showPersonalSessions ? (
-                        <ChevronUp className="h-5 w-5" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5" />
-                      )}
-                    </button>
-                  )}
-                </div>
+                <h2 className="text-xl font-bold text-gray-900">Mes sessions</h2>
               </div>
 
               {sessions.length === 0 ? (
@@ -619,7 +599,7 @@ function Dashboard() {
                     <span>Commencer</span>
                   </Link>
                 </div>
-              ) : showPersonalSessions ? (
+              ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
@@ -679,20 +659,6 @@ function Dashboard() {
                     </tbody>
                   </table>
                 </div>
-              ) : sessions.length > 0 ? (
-                <div className="p-6 text-center">
-                  <p className="text-gray-600 mb-4">
-                    Vous avez {sessions.length} session{sessions.length > 1 ? 's' : ''} d'entraînement.
-                  </p>
-                  <button
-                    onClick={() => setShowPersonalSessions(true)}
-                    className="text-slate-600 hover:text-slate-700 font-medium underline transition-colors inline-flex items-center space-x-2"
-                  >
-                    <span>Afficher mes sessions</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : null}
               )}
             </div>
           </>

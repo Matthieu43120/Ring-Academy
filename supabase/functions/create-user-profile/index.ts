@@ -1,15 +1,13 @@
-```typescript
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.1'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Max-Age': '86400',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling OPTIONS preflight request for create-user-profile');
@@ -19,50 +17,21 @@ Deno.serve(async (req) => {
     })
   }
 
-  try {
-    const { userId, firstName, lastName, email, phone, organizationId, organizationRole, credits, simulationsUsed } = await req.json()
-
-    // Create a Supabase client with the service role key
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') || '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-    )
-
-    const { error } = await supabaseAdmin
-      .from('users')
-      .insert({
-        id: userId,
-        first_name: firstName,
-        last_name: lastName,
-        email: email,
-        phone: phone,
-        organization_id: organizationId,
-        organization_role: organizationRole,
-        credits: credits,
-        simulations_used: simulationsUsed,
-      })
-
-    if (error) {
-      console.error('Error inserting user profile:', error)
-      return new Response(JSON.stringify({ error: error.message }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
-    }
-
-    return new Response(JSON.stringify({ message: 'User profile created successfully' }), {
+  // Pour toutes les autres requêtes (POST), renvoyer une réponse simple
+  if (req.method === 'POST') {
+    console.log('Handling POST request for create-user-profile (simplified)');
+    return new Response(JSON.stringify({ message: 'Simplified user profile creation endpoint reached successfully' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
-    })
-  } catch (error) {
-    console.error('Error in create-user-profile function:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    )
+    });
   }
+
+  // Méthodes non autorisées
+  return new Response(
+    JSON.stringify({ error: "Method Not Allowed" }),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 405,
+    }
+  );
 })
-```

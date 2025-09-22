@@ -443,11 +443,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('✅ REGISTER: Compte Auth créé, insertion du profil...');
 
+      // AJOUT: Ajouter un petit délai pour permettre au client Supabase de mettre à jour son état interne
+      await new Promise(resolve => setTimeout(resolve, 200)); // Délai de 200ms
+
       // NOUVEAU: Vérification explicite de la session avant l'insertion du profil
       const { data: { session: currentActiveSession }, error: getActiveSessionError } = await supabase.auth.getSession();
       
       if (getActiveSessionError || !currentActiveSession || currentActiveSession.user.id !== signUpData.user.id) {
         console.error('❌ REGISTER: La session active ne correspond pas ou est manquante après signUp/setSession.');
+        console.error('❌ REGISTER: currentActiveSession:', currentActiveSession);
+        console.error('❌ REGISTER: signUpData.user.id:', signUpData.user.id);
         throw new Error('La session utilisateur n\'a pas été correctement établie. Veuillez réessayer.');
       }
       console.log('✅ REGISTER: Session active vérifiée et correcte avant insertion.');

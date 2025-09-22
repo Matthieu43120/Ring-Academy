@@ -420,7 +420,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Créer le compte Supabase Auth
-      const { data, error } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
@@ -432,16 +432,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
 
-      if (error) {
-        console.error('❌ REGISTER: Erreur lors de la création du compte Auth:', error);
-        throw error;
+      if (signUpError) {
+        console.error('❌ REGISTER: Erreur lors de la création du compte Auth:', signUpError);
+        throw signUpError;
       }
 
-      if (!data.user) {
-        throw new Error('Erreur lors de la création du compte');
+      if (!signUpData.user || !signUpData.session) {
+        throw new Error('Erreur lors de la création du compte ou de la session');
       }
 
-      console.log('✅ REGISTER: Compte Auth créé, insertion du profil...');
+      console.log('✅ REGISTER: Compte Auth créé, insertion du profil... (ID utilisateur: ' + signUpData.user.id + ')');
+
+      // NOUVEAU: Définir explicitement la session pour s'assurer que le client Supabase est à jour
+      const { error: setSessionError } = await supabase.auth.setSession(signUpData.session);
+      if (setSessionError) {
+        console.error('❌ REGISTER: Erreur lors de la définition de la session après inscription:', setSessionError);
+        throw new Error('Erreur lors de la configuration de la session. Veuillez réessayer.');
+      }
+      console.log('✅ REGISTER: Session définie avec succès après inscription.');
 
       // AJOUT: Ajouter un petit délai pour permettre au client Supabase de mettre à jour son état interne
       await new Promise(resolve => setTimeout(resolve, 200)); // Délai de 200ms
@@ -659,7 +667,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: newOrg, error: orgError } = await supabase
         .from('organizations')
         .insert({
-          id: signUpData.user.id, // Utiliser l'ID directement de signUpData
+          name: name,
           code: orgCode,
           owner_id: user.id,
           credits: user.credits,

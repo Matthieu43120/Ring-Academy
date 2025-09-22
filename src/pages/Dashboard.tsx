@@ -21,7 +21,8 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  ChevronDown
 } from 'lucide-react';
 
 // Définir les interfaces pour les données de l'organisation
@@ -60,6 +61,7 @@ function Dashboard() {
   const [currentView, setCurrentView] = useState<'personal' | 'organization'>('personal');
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [selectedSessionDetail, setSelectedSessionDetail] = useState<any | null>(null);
+  const [showPersonalSessions, setShowPersonalSessions] = useState(false);
 
   // NOUVEAUX ÉTATS pour les données de l'organisation
   const [orgMembersState, setOrgMembersState] = useState<UserProfile[]>([]);
@@ -581,7 +583,22 @@ function Dashboard() {
             {/* Historique des sessions personnelles */}
             <div className="bg-white rounded-xl shadow-lg border border-gray-200">
               <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-bold text-gray-900">Mes sessions</h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-gray-900">Mes sessions</h2>
+                  {sessions.length > 0 && (
+                    <button
+                      onClick={() => setShowPersonalSessions(!showPersonalSessions)}
+                      className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+                    >
+                      <span className="text-sm font-medium">
+                        {showPersonalSessions ? 'Masquer' : 'Afficher'} ({sessions.length})
+                      </span>
+                      <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${
+                        showPersonalSessions ? 'rotate-180' : ''
+                      }`} />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {sessions.length === 0 ? (
@@ -598,6 +615,18 @@ function Dashboard() {
                     <Play className="h-5 w-5" />
                     <span>Commencer</span>
                   </Link>
+                </div>
+              ) : !showPersonalSessions ? (
+                <div className="p-8 text-center">
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <BarChart3 className="h-8 w-8 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-600 mb-2">
+                      <span className="font-semibold">{sessions.length}</span> session{sessions.length > 1 ? 's' : ''} enregistrée{sessions.length > 1 ? 's' : ''}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Cliquez sur "Afficher" pour voir le détail de vos sessions
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="overflow-x-auto">

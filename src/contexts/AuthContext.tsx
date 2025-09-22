@@ -409,14 +409,460 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let organizationId = null;
       if (formData.organizationCode) {
         console.log('🏢 REGISTER: Vérification du code organisation:', formData.organizationCode);
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .select('id')
-          .eq('code', formData.organizationCode)
+        // Appeler la nouvelle fonction RPC pour vérifier le code d'organisation de manière sécurisée
+        const { data: orgIdFromRpc, error: rpcError } = await supabase.rpc('verify_organization_code', {
+          p_organization_code: formData.organizationCode
+        });
+
+        if (rpcError || !orgIdFromRpc) {
+          throw new Error('Code d\'organisation invalide.');
+        }
+        organizationId = orgIdFromRpc;
+        console.log('✅ REGISTER: Organisation trouvée:', organizationId);
+      }
+
+      // Créer le compte Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            phone: formData.phone,
+          },
+        },
+      });
+
+      if (error) {
+        console.error('❌ REGISTER: Erreur lors de la création du compte Auth:', error);
+        throw error;
+      }
+
+      if (!data.user) {
+        throw new Error('Erreur lors de la création du compte');
+      }
+
+      console.log('✅ REGISTER: Compte Auth créé, insertion du profil...');
+
+      // Insérer le profil dans la table users
+      const { error: profileInsertError } = await supabase
+        .from('users')
+        .insert({
+          id: data.user.id,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          organization_id: organizationId,
+          organization_role: organizationId ? 'member' : null,
+          credits: organizationId ? 0 : 1, // 1 crédit gratuit pour les comptes individuels
+          simulations_used: 0,
+        });
+
+      if (profileInsertError) {
+        console.error('❌ REGISTER: Erreur lors de l\'insertion du profil utilisateur:', profileInsertError);
+        // Attempt to delete the auth user if profile insertion fails
+        // Note: This requires admin privileges for Supabase client, which might not be available in client-side code.
+        // If this is client-side, you might need a serverless function for this.
+        // For now, we'll just log and throw.
+        throw profileInsertError;
+      }
+
+      console.log('✅ REGISTER: Profil utilisateur inséré avec succès');
+      
+      // If registration is successful and user is signed in, load their data
+      if (data.user) {
+        await loadUserData(data.user);
+      }
+    } catch (error) {
+      console.error('❌ REGISTER: Erreur lors de l\'inscription:', error);
+      throw error;
+    } finally {
+      console.log('✅ REGISTER: Fin du processus d\'inscription.');
+    }
+  }, [loadUserData]);
+
+  const logout = useCallback(async () => {
+    console.log('🚪 LOGOUT: Début de la déconnexion');
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('❌ LOGOUT: Erreur lors de la déconnexion:', error);
+        throw error;
+      }
+      
+      await loadUserData(null);
+      clearSupabaseTokensFromLocalStorage(); // Explicit cleanup on sign out
+      console.log('✅ LOGOUT: Déconnexion réussie');
+      
+    } catch (error) {
+      console.error('❌ LOGOUT: Erreur de déconnexion:', error);
+      throw error;
+    } finally {
+      console.log('✅ LOGOUT: Fin du processus de déconnexion.');
+    }
+  }, [loadUserData]);
+
+  const getCreditsInfo = useCallback(() => {
+    const currentCredits = user?.credits ?? 0;
+    const simulationsLeft = user?.simulationsLeft ?? 0;
+    return { credits: currentCredits, simulationsLeft };
+  }, [user]);
+
+  const saveSession = useCallback(async (result: SessionResult, config: TrainingConfig) => {
+    if (!user) {
+      console.warn('⚠️ SAVE_SESSION: Utilisateur non connecté, session non sauvegardée.');
+      return;
+    }
+
+    console.log('💾 SAVE_SESSION: Sauvegarde de la session...');
+    
+    try {
+      const { error } = await supabase.from('sessions').insert({
+        user_id: user.id,
+        target: config.target,
+        difficulty: config.difficulty,
+        score: result.score,
+        duration: result.duration,
+        feedback: result.feedback,
+        recommendations: result.recommendations,
+        improvements: result.improvements || [],
+        detailed_analysis: result.detailedAnalysis,
+      });
+
+      if (error) {
+        console.error('❌ SAVE_SESSION: Erreur lors de la sauvegarde:', error);
+        throw error;
+      }
+
+      console.log('✅ SAVE_SESSION: Session sauvegardée avec succès');
+      
+      // Refresh user data to update sessions list
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        await loadUserData(currentUser);
+      }
+    } catch (error) {
+      console.error('❌ SAVE_SESSION: Erreur lors de la sauvegarde de la session:', error);
+    }
+  }, [user, loadUserData]);
+
+  const useCreditForSimulation = useCallback(async () => {
+    if (!user) {
+      console.warn('⚠️ USE_CREDIT: Utilisateur non connecté.');
+      return false;
+    }
+
+    if (user.simulationsLeft <= 0) {
+      console.warn('⚠️ USE_CREDIT: Plus de simulations disponibles.');
+      return false;
+    }
+
+    console.log('💳 USE_CREDIT: Consommation d\'un crédit...');
+    
+    try {
+      if (user.organizationId) {
+        // Consume credit from organization
+        const { error: rpcError } = await supabase.rpc('consume_organization_simulation', {
+          p_organization_id: user.organizationId,
+        });
+      
+        if (rpcError) {
+          console.error('❌ USE_CREDIT: Erreur RPC lors de la consommation du crédit d\'organisation:', rpcError);
+          throw rpcError;
+        }
+        console.log('✅ USE_CREDIT: Crédit d\'organisation consommé');
+      } else {
+        // Consume credit from individual user
+        const { data: updatedUser, error: fetchError } = await supabase
+          .from('users')
+          .select('credits, simulations_used')
+          .eq('id', user.id)
           .single();
 
-        if (orgError || !orgData) {
-          console.error('❌ REGISTER: Code d\'organisation invalide:', orgError);
+        if (fetchError || !updatedUser) {
+          console.error('❌ USE_CREDIT: Erreur lors de la récupération des crédits utilisateur:', fetchError);
+          throw fetchError;
+        }
+
+        let newCredits = updatedUser.credits;
+        let newSimulationsUsed = updatedUser.simulations_used + 1;
+
+        if (newSimulationsUsed >= 3) {
+          if (newCredits <= 0) {
+            throw new Error('Plus de crédits disponibles.');
+          }
+          newCredits -= 1;
+          newSimulationsUsed = 0;
+        }
+
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            credits: newCredits,
+            simulations_used: newSimulationsUsed,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
+
+        if (updateError) {
+          console.error('❌ USE_CREDIT: Erreur de mise à jour des crédits utilisateur:', updateError);
+          throw updateError;
+        }
+        console.log('✅ USE_CREDIT: Crédit individuel consommé');
+      }
+
+      // Refresh user data after credit consumption
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        await loadUserData(currentUser);
+      }
+      return true;
+    } catch (error) {
+      console.error('❌ USE_CREDIT: Erreur lors de la consommation du crédit:', error);
+      return false;
+    }
+  }, [user, loadUserData]);
+
+  const canUseFreeTrial = useCallback(() => {
+    return !freeTrialUsed;
+  }, [freeTrialUsed]);
+
+  const useFreeTrial = useCallback(() => {
+    if (!freeTrialUsed) {
+      localStorage.setItem('ring_academy_free_trial_used', 'true');
+      setFreeTrialUsed(true);
+      console.log('🎁 FREE_TRIAL: Essai gratuit utilisé');
+    }
+  }, [freeTrialUsed]);
+
+  const createOrg = useCallback(async (name: string) => {
+    if (!user) throw new Error('Utilisateur non connecté.');
+    if (organization) throw new Error('Vous appartenez déjà à une organisation.');
+
+    console.log('🏢 CREATE_ORG: Création d\'organisation:', name);
+    
+    try {
+      const orgCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+      const { data: newOrg, error: orgError } = await supabase
+        .from('organizations')
+        .insert({
+          name,
+          code: orgCode,
+          owner_id: user.id,
+          credits: user.credits,
+          simulations_used: user.credits * 3 - user.simulationsLeft,
+        })
+        .select()
+        .single();
+
+      if (orgError) {
+        console.error('❌ CREATE_ORG: Erreur lors de la création de l\'organisation:', orgError);
+        throw orgError;
+      }
+
+      // Update user's organization_id and role
+      const { error: userUpdateError } = await supabase
+        .from('users')
+        .update({
+          organization_id: newOrg.id,
+          organization_role: 'owner',
+          credits: 0,
+          simulations_used: 0,
+        })
+        .eq('id', user.id);
+
+      if (userUpdateError) {
+        console.error('❌ CREATE_ORG: Erreur lors de la mise à jour de l\'utilisateur:', userUpdateError);
+        throw userUpdateError;
+      }
+
+      console.log('✅ CREATE_ORG: Organisation créée avec succès');
+      
+      // Refresh user data
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        await loadUserData(currentUser);
+      }
+    } catch (error) {
+      console.error('❌ CREATE_ORG: Erreur lors de la création de l\'organisation:', error);
+      throw error;
+    } finally {
+      console.log('✅ CREATE_ORG: Fin du processus de création d\'organisation.');
+    }
+  }, [user, organization, loadUserData]);
+
+  const getOrgMembers = useCallback(() => {
+    // This function would typically fetch members from the database
+    // For now, it's a placeholder. You'd need to implement fetching logic.
+    console.warn('⚠️ getOrgMembers: Cette fonction nécessite une implémentation pour récupérer les membres de l\'organisation.');
+    return []; // Placeholder
+  }, []);
+
+  const removeMember = useCallback(async (memberId: string) => {
+    if (!user || user.organizationRole !== 'owner' || !organization) {
+      throw new Error('Accès non autorisé.');
+    }
+
+    console.log('👥 REMOVE_MEMBER: Suppression du membre:', memberId);
+    
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          organization_id: null,
+          organization_role: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', memberId)
+        .eq('organization_id', organization.id);
+
+      if (error) {
+        console.error('❌ REMOVE_MEMBER: Erreur lors de la suppression:', error);
+        throw error;
+      }
+
+      console.log('✅ REMOVE_MEMBER: Membre supprimé avec succès');
+      
+      // Refresh user data
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        await loadUserData(currentUser);
+      }
+    } catch (error) {
+      console.error('❌ REMOVE_MEMBER: Erreur lors de la suppression du membre:', error);
+      throw error;
+    } finally {
+      console.log('✅ REMOVE_MEMBER: Fin du processus de suppression.');
+    }
+  }, [user, organization, loadUserData]);
+
+  const getOrgSessions = useCallback(() => {
+    // This function would typically fetch all sessions for organization members
+    // For now, it's a placeholder. You'd need to implement fetching logic.
+    console.warn('⚠️ getOrgSessions: Cette fonction nécessite une implémentation pour récupérer les sessions de l\'organisation.');
+    return []; // Placeholder
+  }, []);
+
+  const addCredits = useCallback(async (amount: number) => {
+    if (!user) throw new Error('Utilisateur non connecté.');
+    if (user.organizationId) throw new Error('Les crédits sont gérés par votre organisation.');
+
+    console.log('💰 ADD_CREDITS: Ajout de crédits individuels:', amount);
+    
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          credits: user.credits + amount, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('❌ ADD_CREDITS: Erreur lors de l\'ajout de crédits:', error);
+        throw error;
+      }
+      
+      console.log('✅ ADD_CREDITS: Crédits ajoutés avec succès');
+      
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        await loadUserData(currentUser);
+      }
+    } catch (error) {
+      console.error('❌ ADD_CREDITS: Erreur lors de l\'ajout de crédits:', error);
+      throw error;
+    } finally {
+      console.log('✅ ADD_CREDITS: Fin du processus d\'ajout de crédits.');
+    }
+  }, [user, loadUserData]);
+
+  const addCreditsToOrg = useCallback(async (amount: number) => {
+    if (!user || user.organizationRole !== 'owner' || !organization) {
+      throw new Error('Accès non autorisé.');
+    }
+
+    console.log('🏢 ADD_ORG_CREDITS: Ajout de crédits à l\'organisation:', amount);
+    
+    try {
+      const { error: rpcError } = await supabase.rpc('add_organization_credits', {
+        org_id: organization.id,
+        amount: amount,
+      });
+
+      if (rpcError) {
+        console.error('❌ ADD_ORG_CREDITS: Erreur RPC:', rpcError);
+        throw rpcError;
+      }
+      
+      console.log('✅ ADD_ORG_CREDITS: Crédits d\'organisation ajoutés avec succès');
+      
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        await loadUserData(currentUser);
+      }
+    } catch (error) {
+      console.error('❌ ADD_ORG_CREDITS: Erreur lors de l\'ajout de crédits à l\'organisation:', error);
+      throw error;
+    } finally {
+      console.log('✅ ADD_ORG_CREDITS: Fin du processus d\'ajout de crédits d\'organisation.');
+    }
+  }, [user, organization, loadUserData]);
+
+
+  const value = useMemo(() => ({
+    user,
+    organization,
+    sessions,
+    isLoading,
+    login,
+    register,
+    logout,
+    getCreditsInfo,
+    saveSession,
+    useCreditForSimulation,
+    canUseFreeTrial,
+    useFreeTrial,
+    createOrg,
+    getOrgMembers,
+    removeMember,
+    getOrgSessions,
+    addCredits,
+    addCreditsToOrg,
+  }), [
+    user,
+    organization,
+    sessions,
+    isLoading,
+    login,
+    register,
+    logout,
+    getCreditsInfo,
+    saveSession,
+    useCreditForSimulation,
+    canUseFreeTrial,
+    useFreeTrial,
+    createOrg,
+    getOrgMembers,
+    removeMember,
+    getOrgSessions,
+    addCredits,
+    addCreditsToOrg,
+  ]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
           throw new Error('Code d\'organisation invalide.');
         }
         organizationId = orgData.id;

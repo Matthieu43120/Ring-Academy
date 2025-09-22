@@ -14,7 +14,7 @@ function Credits() {
       credits: 5,
       price: 60,
       popular: false,
-      priceId: 'price_1S0lUZLq2s594jkdPOvAAN7T'
+      priceId: 'price_1Rng0qLq2s594jkdgvoGFl2Y'
     },
     {
       credits: 10,

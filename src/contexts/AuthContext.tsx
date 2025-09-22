@@ -441,16 +441,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Erreur lors de la création du compte');
       }
 
-      // NOUVEAU: Définir explicitement la session pour s'assurer que le client Supabase est à jour
-      if (data.session) {
-        const { error: setSessionError } = await supabase.auth.setSession(data.session);
-        if (setSessionError) {
-          console.error('❌ REGISTER: Erreur lors de la définition de la session après inscription:', setSessionError);
-          throw new Error('Erreur lors de la configuration de la session. Veuillez réessayer.');
-        }
-        console.log('✅ REGISTER: Session explicitement définie après inscription.');
-      }
-
       console.log('✅ REGISTER: Compte Auth créé, insertion du profil...');
 
       // Insérer le profil dans la table users

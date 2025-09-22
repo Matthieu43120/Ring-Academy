@@ -24,6 +24,33 @@ import {
   Loader2
 } from 'lucide-react';
 
+// Définir les interfaces pour les données de l'organisation
+interface UserProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  credits: number;
+  simulationsLeft: number;
+  organizationId: string | null;
+  organizationRole: 'owner' | 'member' | null;
+}
+
+interface SessionRecord {
+  id: string;
+  userId: string;
+  target: string;
+  difficulty: string;
+  score: number;
+  duration: number;
+  feedback: string[];
+  recommendations: string[];
+  improvements: string[];
+  detailedAnalysis: string | null;
+  date: string;
+}
+
 function Dashboard() {
   const { user, organization, sessions, getCreditsInfo, createOrg, getOrgMembers, removeMember, getOrgSessions, isLoading } = useAuth();
   const [showCreateOrg, setShowCreateOrg] = useState(false);
@@ -34,9 +61,38 @@ function Dashboard() {
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [selectedSessionDetail, setSelectedSessionDetail] = useState<any | null>(null);
 
+  // NOUVEAUX ÉTATS pour les données de l'organisation
+  const [orgMembersState, setOrgMembersState] = useState<UserProfile[]>([]);
+  const [orgSessionsState, setOrgSessionsState] = useState<SessionRecord[]>([]);
+  const [isOrgDataLoading, setIsOrgDataLoading] = useState(false);
+
   const creditsInfo = getCreditsInfo();
-  const orgMembers = organization ? getOrgMembers() : [];
-  const orgSessions = organization ? getOrgSessions() : [];
+
+  // NOUVEAU useEffect pour charger les données de l'organisation
+  React.useEffect(() => {
+    const fetchOrgData = async () => {
+      if (user && organization && user.organizationRole === 'owner' && currentView === 'organization') {
+        setIsOrgDataLoading(true);
+        try {
+          const members = await getOrgMembers();
+          const sessions = await getOrgSessions();
+          setOrgMembersState(members);
+          setOrgSessionsState(sessions);
+        } catch (error) {
+          console.error('Erreur lors du chargement des données de l\'organisation:', error);
+          setOrgMembersState([]);
+          setOrgSessionsState([]);
+        } finally {
+          setIsOrgDataLoading(false);
+        }
+      } else {
+        setOrgMembersState([]);
+        setOrgSessionsState([]);
+      }
+    };
+
+    fetchOrgData();
+  }, [user, organization, currentView, getOrgMembers, getOrgSessions]);
 
   const handleCreateOrganization = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +114,13 @@ function Dashboard() {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce membre de l\'organisation ?')) {
       try {
         await removeMember(userId);
+        // Recharger les données de l'organisation après suppression
+        if (user && organization && user.organizationRole === 'owner') {
+          const members = await getOrgMembers();
+          const sessions = await getOrgSessions();
+          setOrgMembersState(members);
+          setOrgSessionsState(sessions);
+        }
       } catch (error) {
       }
     }
@@ -83,20 +146,22 @@ function Dashboard() {
     return 'text-red-600 bg-red-50';
   };
 
+  // Utiliser orgSessionsState
   const getMemberSessions = (memberId: string) => {
-    return orgSessions.filter(session => session.userId === memberId);
+    return orgSessionsState.filter(session => session.userId === memberId);
   };
 
+  // Utiliser orgMembersState et orgSessionsState
   const getOrganizationStats = () => {
-    const totalSessions = orgSessions.length;
+    const totalSessions = orgSessionsState.length;
     const averageScore = totalSessions > 0 
-      ? Math.round(orgSessions.reduce((sum, session) => sum + session.score, 0) / totalSessions)
+      ? Math.round(orgSessionsState.reduce((sum, session) => sum + session.score, 0) / totalSessions)
       : 0;
     
     return {
       totalSessions,
       averageScore,
-      totalMembers: orgMembers.length
+      totalMembers: orgMembersState.length
     };
   };
 
@@ -109,7 +174,7 @@ function Dashboard() {
   };
 
   // Gestion de l'état de chargement
-  if (isLoading) {
+  if (isLoading || isOrgDataLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -626,7 +691,7 @@ function Dashboard() {
                         <p className="text-2xl font-bold text-gray-900">{orgStats.totalSessions}</p>
                       </div>
                     </div>
-                  </div>
+          {orgMembersState.map((member) => {
 
                   <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
                     <div className="flex items-center space-x-4">
@@ -676,7 +741,7 @@ function Dashboard() {
                       </button>
                       
                       {(() => {
-                        const selectedMemberData = orgMembers.find(m => m.id === selectedMember);
+                        const selectedMemberData = orgMembersState.find(m => m.id === selectedMember);
                         const memberSessions = getMemberSessions(selectedMember);
                         
                         if (!selectedMemberData) {

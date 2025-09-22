@@ -118,7 +118,7 @@ interface AuthContextType {
   createOrg: (name: string) => Promise<void>;
   getOrgMembers: () => UserProfile[];
   removeMember: (memberId: string) => Promise<void>;
-  getOrgSessions: () => SessionRecord[];
+  getOrgSessions: () => Promise<SessionRecord[]>;
   addCredits: (amount: number) => Promise<void>;
   addCreditsToOrg: (amount: number) => Promise<void>;
 }
@@ -690,12 +690,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user, organization, loadUserData]);
 
-  const getOrgMembers = useCallback(() => {
-    // This function would typically fetch members from the database
-    // For now, it's a placeholder. You'd need to implement fetching logic.
-    console.warn('⚠️ getOrgMembers: Cette fonction nécessite une implémentation pour récupérer les membres de l\'organisation.');
-    return []; // Placeholder
-  }, []);
+  // IMPLÉMENTATION DE getOrgMembers
+  const getOrgMembers = useCallback(async (): Promise<UserProfile[]> => {
+    if (!user || user.organizationRole !== 'owner' || !organization) {
+      console.warn('⚠️ getOrgMembers: Accès non autorisé ou pas d\'organisation.');
+      return [];
+    }
+
+    console.log('👥 FETCH_ORG_MEMBERS: Récupération des membres de l\'organisation:', organization.id);
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('organization_id', organization.id);
+
+      if (error) {
+        console.error('❌ FETCH_ORG_MEMBERS: Erreur lors de la récupération des membres:', error);
+        throw error;
+      }
+
+      const members: UserProfile[] = (data || []).map(member => ({
+        id: member.id,
+        firstName: member.first_name,
+        lastName: member.last_name,
+        email: member.email,
+        phone: member.phone,
+        credits: member.credits,
+        simulationsLeft: member.credits * 3 - member.simulations_used,
+        organizationId: member.organization_id,
+        organizationRole: member.organization_role,
+      }));
+      console.log('✅ FETCH_ORG_MEMBERS: Membres récupérés:', members.length);
+      return members;
+    } catch (error) {
+      console.error('❌ FETCH_ORG_MEMBERS: Erreur lors de la récupération des membres:', error);
+      return [];
+    }
+  }, [user, organization]);
 
   const removeMember = useCallback(async (memberId: string) => {
     if (!user || user.organizationRole !== 'owner' || !organization) {
@@ -735,12 +766,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user, organization, loadUserData]);
 
-  const getOrgSessions = useCallback(() => {
-    // This function would typically fetch all sessions for organization members
-    // For now, it's a placeholder. You'd need to implement fetching logic.
-    console.warn('⚠️ getOrgSessions: Cette fonction nécessite une implémentation pour récupérer les sessions de l\'organisation.');
-    return []; // Placeholder
-  }, []);
+  // IMPLÉMENTATION DE getOrgSessions
+  const getOrgSessions = useCallback(async (): Promise<SessionRecord[]> => {
+    if (!user || user.organizationRole !== 'owner' || !organization) {
+      console.warn('⚠️ getOrgSessions: Accès non autorisé ou pas d\'organisation.');
+      return [];
+    }
+
+    console.log('📊 FETCH_ORG_SESSIONS: Récupération des sessions de l\'organisation:', organization.id);
+    try {
+      // First, get all member IDs for the organization
+      const { data: membersData, error: membersError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('organization_id', organization.id);
+
+      if (membersError) {
+        console.error('❌ FETCH_ORG_SESSIONS: Erreur lors de la récupération des IDs des membres:', membersError);
+        throw membersError;
+      }
+
+      const memberIds = (membersData || []).map(member => member.id);
+
+      if (memberIds.length === 0) {
+        console.log('ℹ️ FETCH_ORG_SESSIONS: Aucune session à récupérer car aucun membre dans l\'organisation.');
+        return [];
+      }
+
+      // Then, fetch all sessions for these member IDs
+      const { data: orgSessionsData, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('*')
+        .in('user_id', memberIds)
+        .order('created_at', { ascending: false });
+
+      if (sessionsError) {
+        console.error('❌ FETCH_ORG_SESSIONS: Erreur lors de la récupération des sessions:', sessionsError);
+        throw sessionsError;
+      }
+
+      const formattedSessions: SessionRecord[] = (orgSessionsData || []).map(session => ({
+        id: session.id,
+        userId: session.user_id,
+        target: session.target,
+        difficulty: session.difficulty,
+        score: session.score,
+        duration: session.duration,
+        feedback: session.feedback || [],
+        recommendations: session.recommendations || [],
+        improvements: session.improvements || [],
+        detailedAnalysis: session.detailed_analysis,
+        date: session.created_at,
+      }));
+      console.log('✅ FETCH_ORG_SESSIONS: Sessions d\'organisation récupérées:', formattedSessions.length);
+      return formattedSessions;
+    } catch (error) {
+      console.error('❌ FETCH_ORG_SESSIONS: Erreur lors de la récupération des sessions d\'organisation:', error);
+      return [];
+    }
+  }, [user, organization]);
 
   const addCredits = useCallback(async (amount: number) => {
     if (!user) throw new Error('Utilisateur non connecté.');

@@ -451,6 +451,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           first_name: formData.firstName,
           last_name: formData.lastName,
           email: formData.email,
+      // NOUVEAU: Vérification explicite de la session avant l'insertion du profil
+      const { data: { session: currentActiveSession }, error: getActiveSessionError } = await supabase.auth.getSession();
+      
+      if (getActiveSessionError || !currentActiveSession || currentActiveSession.user.id !== signUpData.user.id) {
+        console.error('❌ REGISTER: La session active ne correspond pas ou est manquante après signUp/setSession.');
+        throw new Error('La session utilisateur n\'a pas été correctement établie. Veuillez réessayer.');
+      }
+      console.log('✅ REGISTER: Session active vérifiée et correcte avant insertion.');
+
           phone: formData.phone,
           organization_id: organizationId,
           organization_role: organizationId ? 'member' : null,
@@ -469,10 +478,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('✅ REGISTER: Profil utilisateur inséré avec succès');
       
-      // If registration is successful and user is signed in, load their data
-      if (data.user) {
-        await loadUserData(data.user);
-      }
+      // Charger les données utilisateur après l'insertion réussie du profil
+      await loadUserData(signUpData.user);
     } catch (error) {
       console.error('❌ REGISTER: Erreur lors de l\'inscription:', error);
       throw error;
@@ -647,7 +654,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: newOrg, error: orgError } = await supabase
         .from('organizations')
         .insert({
-          name,
+          id: signUpData.user.id, // Utiliser l'ID directement de signUpData
           code: orgCode,
           owner_id: user.id,
           credits: user.credits,

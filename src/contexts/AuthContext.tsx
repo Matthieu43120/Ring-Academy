@@ -437,33 +437,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw signUpError;
       }
 
-      if (!signUpData.user || !signUpData.session) {
-        throw new Error('Erreur lors de la création du compte ou de la session');
+      if (!signUpData.user) {
+        throw new Error('Erreur lors de la création du compte utilisateur.');
       }
 
       console.log('✅ REGISTER: Compte Auth créé, insertion du profil... (ID utilisateur: ' + signUpData.user.id + ')');
-
-      // NOUVEAU: Définir explicitement la session pour s'assurer que le client Supabase est à jour
-      const { error: setSessionError } = await supabase.auth.setSession(signUpData.session);
-      if (setSessionError) {
-        console.error('❌ REGISTER: Erreur lors de la définition de la session après inscription:', setSessionError);
-        throw new Error('Erreur lors de la configuration de la session. Veuillez réessayer.');
-      }
-      console.log('✅ REGISTER: Session définie avec succès après inscription.');
-
-      // AJOUT: Ajouter un petit délai pour permettre au client Supabase de mettre à jour son état interne
-      await new Promise(resolve => setTimeout(resolve, 200)); // Délai de 200ms
-
-      // NOUVEAU: Vérification explicite de la session avant l'insertion du profil
-      const { data: { session: currentActiveSession }, error: getActiveSessionError } = await supabase.auth.getSession();
-      
-      if (getActiveSessionError || !currentActiveSession || currentActiveSession.user.id !== signUpData.user.id) {
-        console.error('❌ REGISTER: La session active ne correspond pas ou est manquante après signUp/setSession.');
-        console.error('❌ REGISTER: currentActiveSession:', currentActiveSession);
-        console.error('❌ REGISTER: signUpData.user.id:', signUpData.user.id);
-        throw new Error('La session utilisateur n\'a pas été correctement établie. Veuillez réessayer.');
-      }
-      console.log('✅ REGISTER: Session active vérifiée et correcte avant insertion.');
 
       // Insérer le profil dans la table users
       const { error: profileInsertError } = await supabase
@@ -491,8 +469,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('✅ REGISTER: Profil utilisateur inséré avec succès');
       
-      // Charger les données utilisateur après l'insertion réussie du profil
-      await loadUserData(signUpData.user);
     } catch (error) {
       console.error('❌ REGISTER: Erreur lors de l\'inscription:', error);
       throw error;

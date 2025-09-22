@@ -35,7 +35,7 @@ function PolitiqueConfidentialite() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">2. Responsable du traitement</h2>
             <div className="space-y-2">
               <p><strong>Nom :</strong> Matthieu ALEXANDER</p>
-              <p><strong>Adresse :</strong> 1420 chemin de moularès, 34070 Montpellier</p>
+              <p><strong>Adresse :</strong> 721 rue de la mairie, 01120 Thil</p>
               <p><strong>Email :</strong> m.alexander@ringacademy.fr</p>
               <p><strong>SIRET :</strong> 94089804200012</p>
             </div>

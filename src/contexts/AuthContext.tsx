@@ -443,14 +443,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('✅ REGISTER: Compte Auth créé, insertion du profil...');
 
-      // Insérer le profil dans la table users
-      const { error: profileInsertError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          email: formData.email,
       // NOUVEAU: Vérification explicite de la session avant l'insertion du profil
       const { data: { session: currentActiveSession }, error: getActiveSessionError } = await supabase.auth.getSession();
       
@@ -460,6 +452,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       console.log('✅ REGISTER: Session active vérifiée et correcte avant insertion.');
 
+      // Insérer le profil dans la table users
+      const { error: profileInsertError } = await supabase
+        .from('users')
+        .insert({
+          id: signUpData.user.id,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
           phone: formData.phone,
           organization_id: organizationId,
           organization_role: organizationId ? 'member' : null,

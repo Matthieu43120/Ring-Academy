@@ -1,16 +1,23 @@
 ```typescript
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from 'https://deno.land/std@0.210.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    console.log('Handling OPTIONS preflight request for create-user-profile');
+    return new Response('ok', {
+      status: 200,
+      headers: corsHeaders
+    })
   }
 
   try {

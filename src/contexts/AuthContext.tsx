@@ -401,6 +401,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string;
     organizationCode?: string;
   }) => {
+    // Force Git detection: Using Edge Function for secure profile creation
     console.log('📝 REGISTER: Tentative d\'inscription pour:', formData.email);
     try {
       // Vérifier le code organisation si fourni
@@ -443,31 +444,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('✅ REGISTER: Compte Auth créé, insertion du profil... (ID utilisateur: ' + signUpData.user.id + ')');
 
-      // Insérer le profil dans la table users
-      const { error: profileInsertError } = await supabase
-        .from('users')
-        .insert({
-          id: signUpData.user.id,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
+      // NOUVEAU: Appeler la fonction Edge pour insérer le profil utilisateur
+      const profileInsertResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-profile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: signUpData.user.id,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
           email: formData.email,
           phone: formData.phone,
-          organization_id: organizationId,
-          organization_role: organizationId ? 'member' : null,
+          organizationId: organizationId,
+          organizationRole: organizationId ? 'member' : null,
           credits: organizationId ? 0 : 1, // 1 crédit gratuit pour les comptes individuels
-          simulations_used: 0,
-        });
+          simulationsUsed: 0,
+        }),
+      });
 
-      if (profileInsertError) {
-        console.error('❌ REGISTER: Erreur lors de l\'insertion du profil utilisateur:', profileInsertError);
-        // Attempt to delete the auth user if profile insertion fails
-        // Note: This requires admin privileges for Supabase client, which might not be available in client-side code.
-        // If this is client-side, you might need a serverless function for this.
-        // For now, we'll just log and throw.
-        throw profileInsertError;
+      if (!profileInsertResponse.ok) {
+        const errorData = await profileInsertResponse.json();
+        console.error('❌ REGISTER: Erreur lors de l\'insertion du profil utilisateur via Edge Function:', errorData);
+        throw new Error(errorData.error || 'Erreur lors de l\'insertion du profil utilisateur.');
       }
 
-      console.log('✅ REGISTER: Profil utilisateur inséré avec succès');
+      console.log('✅ REGISTER: Profil utilisateur inséré avec succès via Edge Function');
       
     } catch (error) {
       console.error('❌ REGISTER: Erreur lors de l\'inscription:', error);
@@ -475,7 +477,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       console.log('✅ REGISTER: Fin du processus d\'inscription.');
     }
-  }, [loadUserData]);
+  }, []);
 
   const logout = useCallback(async () => {
     console.log('🚪 LOGOUT: Début de la déconnexion');

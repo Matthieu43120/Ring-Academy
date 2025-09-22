@@ -691,7 +691,7 @@ function Dashboard() {
                         <p className="text-2xl font-bold text-gray-900">{orgStats.totalSessions}</p>
                       </div>
                     </div>
-          {orgMembersState.map((member) => {
+                  </div>
 
                   <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
                     <div className="flex items-center space-x-4">
@@ -930,7 +930,7 @@ function Dashboard() {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {orgMembers.map((member) => {
+                          {orgMembersState.map((member) => {
                             const memberSessions = getMemberSessions(member.id);
                             const memberAvgScore = memberSessions.length > 0 
                               ? Math.round(memberSessions.reduce((sum, session) => sum + session.score, 0) / memberSessions.length)

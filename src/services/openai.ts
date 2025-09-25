@@ -1,13 +1,25 @@
+  onTextReady?: (text: string) => void
 // Service pour la gestion des appels téléphoniques simulés - ULTRA-OPTIMISÉ avec transcription continue
 export class PhoneCallService {
   private mediaRecorder: MediaRecorder | null = null;
+      console.log('🎵 Phrase finale du buffer:', sentenceBuffer);
   private audioChunks: Blob[] = [];
   private stream: MediaStream | null = null;
   private isRecording = false;
+  console.log('📡 Début traitement streaming...');
+
   private onTranscriptionCallback?: (text: string) => void;
   private silenceTimer: NodeJS.Timeout | null = null;
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
+  let hasStartedProcessing = false;
+  
+  console.log('✅ Message IA final:', cleanMessage, 'shouldEndCall:', shouldEndCall);
+  
+  // Callback final avec le texte complet
+  if (onTextReady && cleanMessage) {
+    onTextReady(cleanMessage);
+  }
   
   // NOUVEAU: Reconnaissance vocale continue avec interimResults
   private recognition: any = null;
@@ -476,15 +488,16 @@ export class PhoneCallService {
   // Jouer la sonnerie ULTRA-RAPIDE
   async playRingtone(): Promise<void> {
     return new Promise((resolve) => {
-      // Créer une sonnerie synthétique
       if (!this.audioContext) {
-        setTimeout(resolve, 1000); // RÉDUCTION: 1200ms → 1000ms
+        resolve();
         return;
       }
 
       // Première sonnerie
+      console.log('🎵 Audio OpenAI prêt, lecture...');
       this.playRingTone();
       
+      console.log('🎵 Fallback synthèse navigateur...');
       // Deuxième sonnerie après 0.7s
       setTimeout(() => {
         this.playRingTone();
@@ -510,9 +523,8 @@ export class PhoneCallService {
     oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime + 0.15); // OPTIMISATION: 0.2 → 0.15
     
     // Volume
-    gainNode.gain.setValueAtTime(0.15, this.audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime + 0.3); // OPTIMISATION: 0.4 → 0.3
-
+    gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+    
     oscillator.start(this.audioContext.currentTime);
     oscillator.stop(this.audioContext.currentTime + 0.3); // OPTIMISATION: 0.4 → 0.3
   }
@@ -520,7 +532,7 @@ export class PhoneCallService {
   // Arrêter l'enregistrement
   stopRecording() {
     // Arrêter la reconnaissance vocale
-    if (this.recognition && this.isListening) {
+    if (this.recognition) {
       this.isListening = false;
       try {
         this.recognition.stop();
@@ -569,4 +581,92 @@ export class PhoneCallService {
   }
 }
 
-export const phoneCallService = new PhoneCallService();
+async function processStreamingResponse(
+  response: Response,
+  target: string,
+  onPartialText?: (text: string) => void,
+  onSentenceReadyForAudio?: (sentence: string) => void,
+  onTextReady?: (text: string) => void
+): Promise<string> {
+  if (!response.body) {
+    throw new Error('Pas de body dans la réponse');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let sentenceBuffer = '';
+  let workingBuffer = '';
+  let hasStartedProcessing = false;
+  
+  console.log('✅ Streaming terminé');
+  
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      buffer += chunk;
+      
+      if (!hasStartedProcessing) {
+        hasStartedProcessing = true;
+        console.log('🎯 Premier contenu reçu, démarrage traitement...');
+      }
+      
+      workingBuffer += chunk;
+      
+      const sentencePatterns = [
+        /[.!?]\s*/g,  // Ponctuation avec ou sans espace
+        /\n/g,        // Retour à la ligne
+      ];
+      
+      for (const pattern of sentencePatterns) {
+        let match;
+        let lastIndex = 0;
+        pattern.lastIndex = 0; // Reset du pattern global
+        
+        while ((match = pattern.exec(workingBuffer)) !== null) {
+          const sentence = workingBuffer.substring(lastIndex, match.index + match[0].length).trim();
+          
+          if (sentence && onSentenceReadyForAudio) {
+            console.log('🎵 Phrase complète détectée:', sentence);
+            onSentenceReadyForAudio(sentence);
+          }
+          
+          lastIndex = match.index + match[0].length;
+        }
+        
+        if (lastIndex > 0) {
+          workingBuffer = workingBuffer.substring(lastIndex);
+          lastIndex = 0;
+        }
+      }
+      
+      if (onPartialText) {
+        onPartialText(buffer);
+      }
+    }
+    
+    const cleanMessage = buffer.trim();
+    const shouldEndCall = cleanMessage.toLowerCase().includes('au revoir') || 
+                         cleanMessage.toLowerCase().includes('bonne journée') ||
+                         cleanMessage.toLowerCase().includes('à bientôt');
+    
+    console.log('✅ Message IA final:', cleanMessage, 'shouldEndCall:', shouldEndCall);
+    
+    // Callback final avec le texte complet
+    if (onTextReady && cleanMessage) {
+      onTextReady(cleanMessage);
+    }
+    
+    return cleanMessage;
+    
+  } catch (error) {
+    console.error('❌ Erreur streaming:', error);
+    throw error;
+  } finally {
+    reader.releaseLock();
+  }
+}

@@ -115,6 +115,10 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
   }
 
   const { type, payload, stream = false } = parsedBody;
+  
+  // --- NOUVEAU LOG POUR DÉBOGAGE ---
+  console.log(`DEBUG: Parsed body - type: ${type}, stream: ${stream}`);
+  // --- FIN NOUVEAU LOG ---
 
   if (!process.env.OPENAI_API_KEY) {
     console.error('OPENAI_API_KEY non configurée');
@@ -145,7 +149,9 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
         console.error(`L'API de streaming OpenAI a retourné le statut: ${response.status}`);
         const contentType = response.headers.get('Content-Type');
         console.error(`Content-Type de l'API de streaming OpenAI (erreur): ${contentType}`);
-        throw new Error(`Erreur API OpenAI (${response.status}): Échec de l'obtention de la réponse en streaming d'OpenAI.`);
+        const errorBody = await response.text(); // Lire le corps de l'erreur
+        console.error(`Corps de l'erreur OpenAI: ${errorBody}`);
+        throw new Error(`Erreur API OpenAI (${response.status}): ${errorBody || response.statusText}`);
       }
 
       if (!response.body) {
@@ -203,7 +209,8 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
                 console.error('❌ Chunk problématique complet:', data);
                 console.error('❌ Type du chunk problématique:', typeof data);
                 console.error('❌ Longueur du chunk problématique:', data ? data.length : 'null');
-                continue;
+                // Lancer une erreur pour arrêter le traitement du flux malformé
+                throw new Error(`Chunk de données OpenAI malformé: ${data.substring(0, 100)}...`);
               }
             }
           }
@@ -240,7 +247,9 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
         console.error(`L'API OpenAI a retourné le statut: ${response.status}`);
         const contentType = response.headers.get('Content-Type');
         console.error(`Content-Type de l'API OpenAI (erreur): ${contentType}`);
-        throw new Error(`Erreur API OpenAI (${response.status}): Échec de l'obtention de la réponse non-streaming d'OpenAI.`);
+        const errorBody = await response.text(); // Lire le corps de l'erreur
+        console.error(`Corps de l'erreur OpenAI: ${errorBody}`);
+        throw new Error(`Erreur API OpenAI (${response.status}): ${errorBody || response.statusText}`);
       }
 
       const completion = await response.json();

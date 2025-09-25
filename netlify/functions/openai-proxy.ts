@@ -24,6 +24,11 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     };
   }
 
+  // Log pour diagnostiquer le contenu de la requête
+  console.log('Received event body:', event.body);
+  console.log('Event body type:', typeof event.body);
+  console.log('Event body length:', event.body ? event.body.length : 'null');
+
   try {
     const { type, payload, stream = false } = JSON.parse(event.body || "{}");
 

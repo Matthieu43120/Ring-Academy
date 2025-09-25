@@ -63,16 +63,10 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
 
         if (!response.ok) {
           console.error(`OpenAI Streaming API returned status: ${response.status}`);
-          console.error(`OpenAI Streaming API Content-Type: ${response.headers.get('Content-Type')}`);
-          let errorData = 'Unknown error from OpenAI API';
-          try {
-            errorData = await response.text();
-          } catch (textError) {
-            console.error('Failed to read OpenAI error response as text:', textError);
-            errorData = `Failed to read error body (status: ${response.status})`;
-          }
-          console.error('OpenAI Streaming API error details:', errorData);
-          throw new Error(`OpenAI API error (${response.status}): ${errorData}`);
+          const contentType = response.headers.get('Content-Type');
+          console.error(`OpenAI Streaming API Content-Type (error): ${contentType}`);
+          // NE PAS TENTER DE LIRE LE CORPS DE LA RÉPONSE D'ERREUR D'OPENAI
+          throw new Error(`OpenAI API error (${response.status}): Failed to get streaming response from OpenAI.`);
         }
 
         if (!response.body) {
@@ -104,16 +98,18 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
         
         console.log('Final streamResult before return (first 500 chars):', streamResult.substring(0, 500) + (streamResult.length > 500 ? '...' : ''));
         
-        // MODIFICATION CLÉ : Retourner un objet Response natif
-        return new Response(streamResult, {
-          status: 200,
+        // Return as Netlify object literal for successful streaming
+        return {
+          statusCode: 200,
           headers: {
             ...corsHeaders,
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
           },
-        });
+          body: streamResult,
+        };
+
       } catch (streamError) {
         console.error('❌ Streaming error:', streamError);
         return {
@@ -136,23 +132,10 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
 
     if (!response.ok) {
       console.error(`OpenAI API returned status: ${response.status}`);
-      console.error(`OpenAI API Content-Type: ${response.headers.get('Content-Type')}`);
-      let errorData = 'Unknown error from OpenAI API';
-      try {
-        errorData = await response.text();
-      } catch (textError) {
-        console.error('Failed to read OpenAI error response as text:', textError);
-        errorData = `Failed to read error body (status: ${response.status})`;
-      }
-      console.error('OpenAI API error details:', errorData);
-      return {
-        statusCode: response.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          error: `OpenAI API error (${response.status}): ${errorData}`,
-          details: errorData
-        }),
-      };
+      const contentType = response.headers.get('Content-Type');
+      console.error(`OpenAI API Content-Type (error): ${contentType}`);
+      // NE PAS TENTER DE LIRE LE CORPS DE LA RÉPONSE D'ERREUR D'OPENAI
+      throw new Error(`OpenAI API error (${response.status}): Failed to get non-streaming response from OpenAI.`);
     }
 
     const completion = await response.json();

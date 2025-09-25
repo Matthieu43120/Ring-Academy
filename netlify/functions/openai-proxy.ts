@@ -102,16 +102,18 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
           reader.releaseLock();
         }
         
-        return {
-          statusCode: 200,
+        console.log('Final streamResult before return (first 500 chars):', streamResult.substring(0, 500) + (streamResult.length > 500 ? '...' : ''));
+        
+        // MODIFICATION CLÉ : Retourner un objet Response natif
+        return new Response(streamResult, {
+          status: 200,
           headers: {
             ...corsHeaders,
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
           },
-          body: streamResult,
-        };
+        });
       } catch (streamError) {
         console.error('❌ Streaming error:', streamError);
         return {

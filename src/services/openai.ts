@@ -289,3 +289,101 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
     return '';
   }
 }
+
+// Fonction pour analyser un appel et générer un rapport
+export async function analyzeCall(
+  conversationHistory: Array<{ role: string; content: string; timestamp: number }>,
+  target: string,
+  difficulty: string,
+  duration: number
+): Promise<{
+  score: number;
+  strengths: string[];
+  recommendations: string[];
+  detailedFeedback: string;
+  improvements: string[];
+}> {
+  try {
+    console.log('🔍 Analyse de l\'appel en cours...');
+    
+    // Préparer les messages pour l'analyse
+    const analysisMessages = [
+      {
+        role: 'system' as const,
+        content: `Tu es un expert en prospection téléphonique. Analyse cette conversation et fournis un rapport détaillé.
+        
+        Critères d'évaluation :
+        - Qualité de l'approche et de l'accroche
+        - Gestion des objections
+        - Capacité d'écoute et d'adaptation
+        - Clarté du discours
+        - Atteinte de l'objectif (prise de rendez-vous)
+        
+        Fournis une réponse JSON avec :
+        - score (sur 100)
+        - strengths (array de points forts)
+        - recommendations (array de recommandations)
+        - detailedFeedback (analyse détaillée)
+        - improvements (array d'axes d'amélioration)`
+      },
+      {
+        role: 'user' as const,
+        content: `Analyse cette conversation de prospection :
+        
+        Cible : ${target}
+        Difficulté : ${difficulty}
+        Durée : ${Math.round(duration / 1000)}s
+        
+        Conversation :
+        ${conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}`
+      }
+    ];
+
+    // Appeler l'API OpenAI pour l'analyse
+    const response = await fetch(OPENAI_PROXY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: analysisMessages,
+        target: 'analysis',
+        stream: false
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const analysisText = result.choices?.[0]?.message?.content || '';
+    
+    // Parser la réponse JSON
+    try {
+      const analysis = JSON.parse(analysisText);
+      console.log('✅ Analyse terminée:', analysis);
+      return analysis;
+    } catch (parseError) {
+      console.warn('⚠️ Erreur parsing analyse, utilisation fallback');
+      // Fallback si le parsing JSON échoue
+      return {
+        score: 75,
+        strengths: ['Bonne approche générale'],
+        recommendations: ['Continuer à pratiquer'],
+        detailedFeedback: analysisText || 'Analyse non disponible',
+        improvements: ['Améliorer la gestion des objections']
+      };
+    }
+  } catch (error) {
+    console.error('❌ Erreur analyse appel:', error);
+    // Retourner une analyse par défaut en cas d'erreur
+    return {
+      score: 50,
+      strengths: ['Participation à la simulation'],
+      recommendations: ['Réessayer la simulation', 'Pratiquer davantage'],
+      detailedFeedback: 'Une erreur est survenue lors de l\'analyse. Veuillez réessayer.',
+      improvements: ['Améliorer la technique de prospection']
+    };
+  }
+}

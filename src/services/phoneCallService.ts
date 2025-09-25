@@ -397,7 +397,7 @@ export class PhoneCallService {
           this.silenceTimer = setTimeout(() => {
             this.stopRecordingAndTranscribe();
           }, 600); // AMÉLIORATION: 800ms → 600ms pour transcription plus rapide
-        }, 500); // OPTIMISATION: 600ms → 500ms pour encore plus de réactivité
+        }
       }
 
       requestAnimationFrame(checkAudioLevel);

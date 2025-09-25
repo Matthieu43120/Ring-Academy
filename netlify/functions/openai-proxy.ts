@@ -49,8 +49,50 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
       console.log('🚀 Starting streaming chat completion...');
       
       try {
-          rawBody: event.body
-        const streamingResponse = await handleStreamingChatCompletion(payload);
+        // Ajouter le paramètre stream à la payload
+        const streamPayload = { ...payload, stream: true };
+        
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(streamPayload),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          console.error('OpenAI Streaming API error:', errorData);
+          throw new Error(`OpenAI API error (${response.status}): ${errorData}`);
+        }
+
+        if (!response.body) {
+          throw new Error("No response body from OpenAI");
+        }
+
+        console.log('✅ OpenAI streaming response received, forwarding...');
+
+        // Retourner directement le stream sans le traiter
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let streamResult = '';
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              console.log('✅ Streaming completed');
+              break;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            streamResult += chunk;
+          }
+        } finally {
+          reader.releaseLock();
+        }
         
         return {
           statusCode: 200,
@@ -60,7 +102,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
           },
-          body: streamingResponse,
+          body: streamResult,
         };
       } catch (streamError) {
         console.error('❌ Streaming error:', streamError);
@@ -123,87 +165,5 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     };
   }
 };
-
-// Nouvelle fonction pour gérer le streaming des réponses chat completion
-async function handleStreamingChatCompletion(payload: any): Promise<string> {
-  try {
-    console.log('📡 Making streaming request to OpenAI...');
-    
-    // Ajouter le paramètre stream à la payload
-    const streamPayload = { ...payload, stream: true };
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(streamPayload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('OpenAI Streaming API error:', errorData);
-      console.error('OpenAI Streaming API status:', response.status);
-      throw new Error(`OpenAI API error (${response.status}): ${errorData || response.statusText}`);
-    }
-
-    if (!response.body) {
-      throw new Error("No response body from OpenAI");
-    }
-
-    console.log('✅ OpenAI streaming response received, processing...');
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let result = '';
-    let buffer = '';
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        
-        if (done) {
-          console.log('✅ Streaming completed');
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        
-        // Garder la dernière ligne incomplète dans le buffer
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.trim() === '') continue;
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            
-            if (data === '[DONE]') {
-              result += 'data: [DONE]\n\n';
-              break;
-            }
-
-            try {
-              const parsed = JSON.parse(data);
-              // Transmettre directement le chunk au client
-              result += `data: ${JSON.stringify(parsed)}\n\n`;
-            } catch (e) {
-              // Ignorer les chunks malformés
-              continue;
-            }
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
-
-    return result;
-  } catch (error) {
-    console.error('Error in streaming response:', error);
-    return `data: ${JSON.stringify({ error: error.message || "Streaming error" })}\n\n`;
-  }
-}
 
 export { handler };

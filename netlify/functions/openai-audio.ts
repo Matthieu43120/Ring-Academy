@@ -50,10 +50,14 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
       if (!response.ok) {
         const errorData = await response.text();
         console.error('OpenAI TTS API error:', errorData);
+        console.error('OpenAI TTS API status:', response.status);
         return {
           statusCode: response.status,
           headers: corsHeaders,
-          body: JSON.stringify({ error: `OpenAI TTS API error: ${response.statusText}` }),
+          body: JSON.stringify({ 
+            error: `OpenAI TTS API error (${response.status}): ${errorData || response.statusText}`,
+            details: errorData
+          }),
         };
       }
 
@@ -89,10 +93,21 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     };
   } catch (error) {
     console.error("Error in OpenAI audio proxy function:", error);
+    
+    // Log détaillé pour le diagnostic
+    console.error("Audio error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
     return {
       statusCode: 500,
       headers: corsHeaders,
-      body: JSON.stringify({ error: error.message || "Internal Server Error" }),
+      body: JSON.stringify({ 
+        error: error.message || "Internal Server Error",
+        type: error.name || "UnknownError"
+      }),
     };
   }
 };

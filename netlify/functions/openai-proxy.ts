@@ -79,7 +79,10 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
       return {
         statusCode: response.status,
         headers: corsHeaders,
-        body: JSON.stringify({ error: `OpenAI API error: ${response.statusText}` }),
+        body: JSON.stringify({ 
+          error: `OpenAI API error (${response.status}): ${errorData || response.statusText}`,
+          details: errorData 
+        }),
       };
     }
 
@@ -92,10 +95,21 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     };
   } catch (error) {
     console.error("Error in OpenAI proxy function:", error);
+    
+    // Log détaillé pour le diagnostic
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
     return {
       statusCode: 500,
       headers: corsHeaders,
-      body: JSON.stringify({ error: error.message || "Internal Server Error" }),
+      body: JSON.stringify({ 
+        error: error.message || "Internal Server Error",
+        type: error.name || "UnknownError"
+      }),
     };
   }
 };
@@ -120,7 +134,7 @@ async function handleStreamingChatCompletion(payload: any): Promise<string> {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('OpenAI Streaming API error:', errorData);
-      throw new Error(`OpenAI API error: ${response.statusText}`);
+      throw new Error(`OpenAI API error (${response.status}): ${errorData || response.statusText}`);
     }
 
     if (!response.body) {

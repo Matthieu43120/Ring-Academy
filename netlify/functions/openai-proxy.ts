@@ -224,6 +224,52 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
         },
         body: streamResult,
       };
-    }
 
+    } else {
+      // Comportement normal pour les requêtes non-streaming
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        console.error(`L'API OpenAI a retourné le statut: ${response.status}`);
+        const contentType = response.headers.get('Content-Type');
+        console.error(`Content-Type de l'API OpenAI (erreur): ${contentType}`);
+        throw new Error(`Erreur API OpenAI (${response.status}): Échec de l'obtention de la réponse non-streaming d'OpenAI.`);
+      }
+
+      const completion = await response.json();
+
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify(completion),
+      };
+    }
+  } catch (error) {
+    console.error("Erreur dans la fonction proxy OpenAI:", error);
     
+    console.error("Détails de l'erreur:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      rawBody: event.body
+    });
+    
+    return {
+      statusCode: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        error: error.message || "Erreur interne du serveur",
+        type: error.name || "Erreur inconnue"
+      }),
+    };
+  }
+};
+
+export { handler };

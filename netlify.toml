@@ -6,6 +6,10 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# Configuration des fonctions
+[functions]
+  directory = "netlify/functions"
+
 # Redirections pour React Router (SPA)
 [[redirects]]
   from = "/*"

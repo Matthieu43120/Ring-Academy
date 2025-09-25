@@ -76,12 +76,13 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     if (!response.ok) {
       const errorData = await response.text();
       console.error('OpenAI API error:', errorData);
+      console.error('OpenAI API status:', response.status);
       return {
         statusCode: response.status,
         headers: corsHeaders,
         body: JSON.stringify({ 
           error: `OpenAI API error (${response.status}): ${errorData || response.statusText}`,
-          details: errorData 
+          details: errorData
         }),
       };
     }
@@ -134,6 +135,7 @@ async function handleStreamingChatCompletion(payload: any): Promise<string> {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('OpenAI Streaming API error:', errorData);
+      console.error('OpenAI Streaming API status:', response.status);
       throw new Error(`OpenAI API error (${response.status}): ${errorData || response.statusText}`);
     }
 

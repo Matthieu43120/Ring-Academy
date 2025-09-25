@@ -488,24 +488,23 @@ export class PhoneCallService {
   // Jouer la sonnerie ULTRA-RAPIDE
   async playRingtone(): Promise<void> {
     return new Promise((resolve) => {
+      // Créer une sonnerie synthétique
       if (!this.audioContext) {
-        resolve();
+        setTimeout(resolve, 1000); // RÉDUCTION: 1200ms → 1000ms
         return;
       }
 
       // Première sonnerie
-      console.log('🎵 Audio OpenAI prêt, lecture...');
       this.playRingTone();
       
-      console.log('🎵 Fallback synthèse navigateur...');
       // Deuxième sonnerie après 0.7s
       setTimeout(() => {
         this.playRingTone();
+        setTimeout(() => {
+          resolve();
+        }, 1200); // OPTIMISATION: 1500ms → 1200ms pour démarrage plus rapide
       }, 700); // RÉDUCTION: 800ms → 700ms
-
-      setTimeout(() => {
-        resolve();
-      }, 1200); // OPTIMISATION: 1500ms → 1200ms pour démarrage plus rapide
+      console.log('✅ Streaming terminé');
     });
   }
 
@@ -514,7 +513,7 @@ export class PhoneCallService {
 
     const oscillator = this.audioContext.createOscillator();
     const gainNode = this.audioContext.createGain();
-
+    
     oscillator.connect(gainNode);
     gainNode.connect(this.audioContext.destination);
 
@@ -532,7 +531,7 @@ export class PhoneCallService {
   // Arrêter l'enregistrement
   stopRecording() {
     // Arrêter la reconnaissance vocale
-    if (this.recognition) {
+    if (this.recognition && this.isListening) {
       this.isListening = false;
       try {
         this.recognition.stop();
@@ -581,78 +580,103 @@ export class PhoneCallService {
   }
 }
 
+// Fonction pour traiter la réponse streaming
 async function processStreamingResponse(
   response: Response,
   target: string,
   onPartialText?: (text: string) => void,
   onSentenceReadyForAudio?: (sentence: string) => void,
   onTextReady?: (text: string) => void
-): Promise<string> {
-  if (!response.body) {
-    throw new Error('Pas de body dans la réponse');
-  }
+) {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('Pas de reader disponible');
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
   let buffer = '';
   let sentenceBuffer = '';
   let workingBuffer = '';
   let hasStartedProcessing = false;
-  
-  console.log('✅ Streaming terminé');
-  
+
+  console.log('🚀 Démarrage streaming IA...');
+
   try {
     while (true) {
       const { done, value } = await reader.read();
-      
       if (done) break;
-      
-      const chunk = decoder.decode(value, { stream: true });
+
+      const chunk = new TextDecoder().decode(value);
       buffer += chunk;
-      
+
       if (!hasStartedProcessing) {
         hasStartedProcessing = true;
         console.log('🎯 Premier contenu reçu, démarrage traitement...');
       }
-      
-      workingBuffer += chunk;
-      
-      const sentencePatterns = [
-        /[.!?]\s*/g,  // Ponctuation avec ou sans espace
-        /\n/g,        // Retour à la ligne
-      ];
-      
-      for (const pattern of sentencePatterns) {
-        let match;
-        let lastIndex = 0;
-        pattern.lastIndex = 0; // Reset du pattern global
-        
-        while ((match = pattern.exec(workingBuffer)) !== null) {
-          const sentence = workingBuffer.substring(lastIndex, match.index + match[0].length).trim();
-          
-          if (sentence && onSentenceReadyForAudio) {
-            console.log('🎵 Phrase complète détectée:', sentence);
-            onSentenceReadyForAudio(sentence);
+
+      // Traitement ligne par ligne
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content || '';
+            
+            if (content) {
+              workingBuffer += content;
+              
+              // Callback pour texte partiel
+              if (onPartialText) {
+                onPartialText(workingBuffer);
+              }
+
+              // Détecter phrases complètes
+              const sentencePatterns = [
+                /[.!?]\s*/g,  // Ponctuation avec ou sans espace
+                /\n/g,        // Retour à la ligne
+              ];
+
+              for (const pattern of sentencePatterns) {
+                let match;
+                let lastIndex = 0;
+                pattern.lastIndex = 0; // Reset du pattern global
+
+                while ((match = pattern.exec(workingBuffer)) !== null) {
+                  const sentence = workingBuffer.substring(lastIndex, match.index + match[0].length).trim();
+                  
+                  if (sentence && onSentenceReadyForAudio) {
+                    console.log('🎵 Phrase complète détectée:', sentence);
+                    onSentenceReadyForAudio(sentence);
+                  }
+                  
+                  lastIndex = match.index + match[0].length;
+                }
+                
+                if (lastIndex > 0) {
+                  workingBuffer = workingBuffer.substring(lastIndex);
+                  lastIndex = 0;
+                }
+              }
+            }
+          } catch (error) {
+            // Ignorer les erreurs de parsing JSON
           }
-          
-          lastIndex = match.index + match[0].length;
         }
-        
-        if (lastIndex > 0) {
-          workingBuffer = workingBuffer.substring(lastIndex);
-          lastIndex = 0;
-        }
-      }
-      
-      if (onPartialText) {
-        onPartialText(buffer);
       }
     }
-    
-    const cleanMessage = buffer.trim();
+
+    // Traiter le reste du buffer
+    if (workingBuffer.trim() && onSentenceReadyForAudio) {
+      console.log('🎵 Phrase finale du buffer:', sentenceBuffer);
+      onSentenceReadyForAudio(workingBuffer.trim());
+    }
+
+    console.log('📡 Début traitement streaming...');
+    const cleanMessage = workingBuffer.trim();
     const shouldEndCall = cleanMessage.toLowerCase().includes('au revoir') || 
-                         cleanMessage.toLowerCase().includes('bonne journée') ||
-                         cleanMessage.toLowerCase().includes('à bientôt');
+                         cleanMessage.toLowerCase().includes('bonne journée');
     
     console.log('✅ Message IA final:', cleanMessage, 'shouldEndCall:', shouldEndCall);
     
@@ -661,11 +685,8 @@ async function processStreamingResponse(
       onTextReady(cleanMessage);
     }
     
-    return cleanMessage;
-    
-  } catch (error) {
-    console.error('❌ Erreur streaming:', error);
-    throw error;
+    console.log('✅ Streaming terminé');
+    return await processStreamingResponse(response, target, onPartialText, onSentenceReadyForAudio, onTextReady);
   } finally {
     reader.releaseLock();
   }

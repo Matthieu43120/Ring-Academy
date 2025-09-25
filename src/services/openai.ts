@@ -1,25 +1,13 @@
-onTextReady?: (text: string) => void
 // Service pour la gestion des appels téléphoniques simulés - ULTRA-OPTIMISÉ avec transcription continue
 export class PhoneCallService {
   private mediaRecorder: MediaRecorder | null = null;
-      console.log('🎵 Phrase finale du buffer:', sentenceBuffer);
   private audioChunks: Blob[] = [];
   private stream: MediaStream | null = null;
   private isRecording = false;
-  console.log('📡 Début traitement streaming...');
-
   private onTranscriptionCallback?: (text: string) => void;
   private silenceTimer: NodeJS.Timeout | null = null;
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
-  let hasStartedProcessing = false;
-  
-  console.log('✅ Message IA final:', cleanMessage, 'shouldEndCall:', shouldEndCall);
-  
-  // Callback final avec le texte complet
-  if (onTextReady && cleanMessage) {
-    onTextReady(cleanMessage);
-  }
   
   // NOUVEAU: Reconnaissance vocale continue avec interimResults
   private recognition: any = null;
@@ -466,4 +454,119 @@ export class PhoneCallService {
     }
 
     try {
-      const { transc
+      const { transcribeAudio } = await import('./openai');
+      
+      // AMÉLIORATION CRITIQUE: Transcription avec timeout pour éviter les blocages
+      const transcriptionPromise = transcribeAudio(audioBlob);
+      const timeoutPromise = new Promise<string>((_, reject) => {
+        setTimeout(() => reject(new Error('Transcription timeout')), 2000); // OPTIMISATION: 2.5s → 2s
+      });
+      
+      const transcription = await Promise.race([transcriptionPromise, timeoutPromise]);
+      
+      if (transcription.trim() && this.onTranscriptionCallback) {
+        this.onTranscriptionCallback(transcription.trim());
+      } else {
+      }
+    } catch (error) {
+      // En cas d'erreur, on continue sans bloquer
+    }
+  }
+
+  // Jouer la sonnerie ULTRA-RAPIDE
+  async playRingtone(): Promise<void> {
+    return new Promise((resolve) => {
+      // Créer une sonnerie synthétique
+      if (!this.audioContext) {
+        setTimeout(resolve, 1000); // RÉDUCTION: 1200ms → 1000ms
+        return;
+      }
+
+      // Première sonnerie
+      this.playRingTone();
+      
+      // Deuxième sonnerie après 0.7s
+      setTimeout(() => {
+        this.playRingTone();
+      }, 700); // RÉDUCTION: 800ms → 700ms
+
+      setTimeout(() => {
+        resolve();
+      }, 1200); // OPTIMISATION: 1500ms → 1200ms pour démarrage plus rapide
+    });
+  }
+
+  private playRingTone() {
+    if (!this.audioContext) return;
+
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+
+    // Fréquences de sonnerie classique
+    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime + 0.15); // OPTIMISATION: 0.2 → 0.15
+    
+    // Volume
+    gainNode.gain.setValueAtTime(0.15, this.audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime + 0.3); // OPTIMISATION: 0.4 → 0.3
+
+    oscillator.start(this.audioContext.currentTime);
+    oscillator.stop(this.audioContext.currentTime + 0.3); // OPTIMISATION: 0.4 → 0.3
+  }
+
+  // Arrêter l'enregistrement
+  stopRecording() {
+    // Arrêter la reconnaissance vocale
+    if (this.recognition && this.isListening) {
+      this.isListening = false;
+      try {
+        this.recognition.stop();
+      } catch (error) {
+      }
+    }
+
+    if (this.silenceTimer) {
+      clearTimeout(this.silenceTimer);
+      this.silenceTimer = null;
+    }
+
+    if (this.sentenceEndTimer) {
+      clearTimeout(this.sentenceEndTimer);
+      this.sentenceEndTimer = null;
+    }
+
+    if (this.mediaRecorder && this.isRecording) {
+      this.mediaRecorder.stop();
+      this.isRecording = false;
+    }
+
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => {
+        track.stop();
+      });
+      this.stream = null;
+    }
+
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      this.audioContext.close().then(() => {
+      });
+      this.audioContext = null;
+    }
+
+    this.resetTranscription();
+    this.lastSentMessage = '';
+    this.isProcessingMessage = false;
+    this.isAISpeaking = false;
+  }
+
+  // Vérifier le support
+  isSupported(): boolean {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && 
+             (window.MediaRecorder || 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window));
+  }
+}
+
+export const phoneCallService = new PhoneCallService();

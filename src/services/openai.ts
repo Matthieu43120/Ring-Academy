@@ -2,34 +2,54 @@
 const OPENAI_PROXY_URL = '/.netlify/functions/openai-proxy';
 const OPENAI_AUDIO_URL = '/.netlify/functions/openai-audio';
 
-// Interface pour les paramètres de génération de réponse IA
-interface AIResponseParams {
-  messages: Array<{
-    role: 'system' | 'user' | 'assistant';
+// Interface pour le contexte de conversation
+export interface ConversationContext {
+  target: string;
+  difficulty: string;
+  conversationHistory: Array<{
+    role: 'user' | 'assistant';
     content: string;
   }>;
-  target: string;
-  onPartialText?: (text: string) => void;
-  onSentenceReadyForAudio?: (sentence: string) => void;
-  onTextReady?: (text: string) => void;
 }
 
 // Fonction pour générer une réponse IA rapide avec streaming
-export async function generateAIResponseFast(params: AIResponseParams): Promise<string> {
-  const { messages, target, onPartialText, onSentenceReadyForAudio, onTextReady } = params;
+export async function generateAIResponseFast(
+  context: ConversationContext,
+  isFirstMessage: boolean = false,
+  onTextReady?: (text: string) => void,
+  onPartialText?: (text: string) => void,
+  onSentenceReadyForAudio?: (sentence: string) => void
+): Promise<{ message: string; shouldEndCall: boolean }> {
   
   console.log('🚀 Démarrage streaming IA...');
   
   try {
+    // Construire le prompt système basé sur le target et difficulty
+    const systemPrompt = buildSystemPrompt(context.target, context.difficulty, isFirstMessage);
+    
+    // Construire les messages pour l'API OpenAI
+    const messages = [
+      { role: 'system' as const, content: systemPrompt },
+      ...context.conversationHistory
+    ];
+    
+    // Préparer la payload pour la fonction Netlify
+    const payload = {
+      model: 'gpt-4o-mini',
+      messages: messages,
+      temperature: 0.8,
+      max_tokens: 200,
+      stream: true
+    };
+    
     const response = await fetch(OPENAI_PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        messages,
-        target,
-        stream: true
+        type: 'chatCompletion',
+        payload: payload
       }),
     });
 
@@ -37,17 +57,54 @@ export async function generateAIResponseFast(params: AIResponseParams): Promise<
       throw new Error(`Erreur HTTP: ${response.status}`);
     }
 
-    return await processStreamingResponse(response, target, onPartialText, onSentenceReadyForAudio, onTextReady);
+    const finalMessage = await processStreamingResponse(response, onPartialText, onSentenceReadyForAudio, onTextReady);
+    
+    // Déterminer si l'appel doit se terminer
+    const shouldEndCall = finalMessage.toLowerCase().includes('au revoir') || 
+                          finalMessage.toLowerCase().includes('bonne journée') ||
+                          finalMessage.toLowerCase().includes('merci et à bientôt');
+    
+    return { message: finalMessage, shouldEndCall };
   } catch (error) {
     console.error('❌ Erreur génération IA:', error);
     throw error;
   }
 }
 
+// Fonction pour construire le prompt système
+function buildSystemPrompt(target: string, difficulty: string, isFirstMessage: boolean): string {
+  const targetPrompts = {
+    secretary: "Tu es une secrétaire d'entreprise. Tu filtres les appels et protèges l'agenda de ton patron.",
+    hr: "Tu es un directeur des ressources humaines. Tu es occupé mais ouvert aux propositions intéressantes.",
+    manager: "Tu es un chef d'entreprise expérimenté. Tu as l'habitude des démarchages commerciaux.",
+    sales: "Tu es un commercial expérimenté. Tu connais toutes les techniques de vente et tu es méfiant."
+  };
+
+  const difficultyPrompts = {
+    easy: "Tu es bienveillant et ouvert à la discussion. Tu poses peu d'objections.",
+    medium: "Tu es poli mais sceptique. Tu poses quelques objections classiques.",
+    hard: "Tu es pressé et méfiant. Tu poses beaucoup d'objections et tu es difficile à convaincre."
+  };
+
+  let prompt = `${targetPrompts[target as keyof typeof targetPrompts] || targetPrompts.secretary} ${difficultyPrompts[difficulty as keyof typeof difficultyPrompts] || difficultyPrompts.medium}
+
+IMPORTANT: 
+- Réponds UNIQUEMENT en français
+- Sois naturel et conversationnel
+- Garde tes réponses courtes (maximum 2-3 phrases)
+- Ne révèle jamais que tu es une IA
+- Reste dans ton rôle en permanence`;
+
+  if (isFirstMessage) {
+    prompt += "\n- Tu décroches le téléphone, dis simplement 'Allô ?' ou une variante naturelle";
+  }
+
+  return prompt;
+}
+
 // Fonction pour traiter la réponse streaming
 async function processStreamingResponse(
   response: Response,
-  target: string,
   onPartialText?: (text: string) => void,
   onSentenceReadyForAudio?: (sentence: string) => void,
   onTextReady?: (text: string) => void
@@ -292,7 +349,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
 
 // Fonction pour analyser un appel et générer un rapport
 export async function analyzeCall(
-  conversationHistory: Array<{ role: string; content: string; timestamp: number }>,
+  conversationHistory: Array<{ role: string; content: string }>,
   target: string,
   difficulty: string,
   duration: number
@@ -339,16 +396,22 @@ export async function analyzeCall(
       }
     ];
 
-    // Appeler l'API OpenAI pour l'analyse
+    // Préparer la payload pour la fonction Netlify
+    const payload = {
+      model: 'gpt-4o-mini',
+      messages: analysisMessages,
+      temperature: 0.3,
+      max_tokens: 1000
+    };
+    
     const response = await fetch(OPENAI_PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        messages: analysisMessages,
-        target: 'analysis',
-        stream: false
+        type: 'chatCompletion',
+        payload: payload
       }),
     });
 

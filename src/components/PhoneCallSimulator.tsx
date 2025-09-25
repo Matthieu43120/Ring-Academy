@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Phone, PhoneOff, Volume2, VolumeX } from 'lucide-react';
 import { TrainingConfig, SessionResult } from '../pages/Training';
-import { generateAIResponseFast, analyzeCall, ConversationContext, playTextImmediately } from '../services/openai';
+import { generateAIResponseFast, analyzeCall, ConversationContext } from '../services/openai';
 import { phoneCallService } from '../services/phoneCallService';
 
 interface PhoneCallSimulatorProps {
@@ -101,15 +101,33 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     setAiThinking(true);
 
     try {
-      // Générer la réponse IA
-      const aiResponse = await generateAIResponseFast({
+      // Préparer le contexte pour la première réponse
+      const context: ConversationContext = {
         target: config.target,
         difficulty: config.difficulty,
         conversationHistory: []
-      }, true, undefined, undefined, (sentence) => {
+      };
+      
+      // Générer la réponse IA
+      const aiResponse = await generateAIResponseFast(
+        context,
+        true, // isFirstMessage
+        (finalText) => {
+          // Callback quand le texte final est prêt
+          console.log('✅ Texte IA final reçu:', finalText);
+          setAiThinking(false);
+          setPartialAIText('');
+        },
+        (partialText) => {
+          // Callback pour le texte partiel (feedback visuel)
+          setPartialAIText(partialText);
+          setAiThinking(false); // Désactiver "L'IA réfléchit" dès le premier texte
+        },
+        (sentence) => {
         // Callback quand une phrase est prête
-        setAiThinking(false);
-      });
+          console.log('🎵 Phrase IA prête:', sentence);
+        }
+      );
 
       // CRITIQUE: Ajouter à l'historique ET à la ref
       const newHistory = [{ role: 'assistant' as const, content: aiResponse.message }];
@@ -121,8 +139,8 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
 
       // Jouer l'audio avec la meilleure méthode disponible
       if (!isMuted) {
-        const { playTextWithBestMethod } = await import('../services/openai');
-        playTextWithBestMethod(aiResponse.message, config.target).then(() => {
+        const { playTextImmediately } = await import('../services/openai');
+        playTextImmediately(aiResponse.message).then(() => {
           // CRITIQUE: Informer que l'IA a fini de parler
           phoneCallService.setAISpeaking(false);
           setIsAISpeaking(false);
@@ -145,8 +163,8 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       // Fallback ultime
       if (!isMuted) {
         phoneCallService.setAISpeaking(true);
-        const { playTextWithBestMethod } = await import('../services/openai');
-        playTextWithBestMethod("Allô ?", config.target).then(() => {
+        const { playTextImmediately } = await import('../services/openai');
+        playTextImmediately("Allô ?").then(() => {
             phoneCallService.setAISpeaking(false);
             setIsAISpeaking(false);
           }).catch(() => {
@@ -203,7 +221,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
 
     try {
       // CRITIQUE: Utiliser l'historique de la ref (le plus à jour)
-      const contextForAI = {
+      const contextForAI: ConversationContext = {
         target: config.target,
         difficulty: config.difficulty,
         conversationHistory: conversationHistoryRef.current
@@ -211,7 +229,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       
       // Générer la réponse IA
       const aiResponse = await generateAIResponseFast(
-        contextForAI, 
+        contextForAI,
         false,
         (finalText) => {
           // Callback quand le texte final est prêt
@@ -265,8 +283,8 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       // Fallback avec synthèse vocale
       const fallbackMessage = "Pardon ?";
       if (!isMuted) {
-        const { playTextWithBestMethod } = await import('../services/openai');
-        playTextWithBestMethod(fallbackMessage, config.target).then(() => {
+        const { playTextImmediately } = await import('../services/openai');
+        playTextImmediately(fallbackMessage).then(() => {
           phoneCallService.setAISpeaking(false);
           setIsAISpeaking(false);
         }).catch(() => {

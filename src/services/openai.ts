@@ -314,7 +314,9 @@ RÈGLES UNIVERSELLES CRITIQUES:
 export const generateAIResponseFast = async (
   context: ConversationContext, 
   isFirstMessage: boolean = false,
-  onTextReady?: (text: string) => void
+  onTextReady?: (text: string) => void,
+  onPartialText?: (partialText: string) => void,
+  onSentenceReadyForAudio?: (sentence: string) => void
 ): Promise<AIResponse> => {
   try {
     if (isFirstMessage) {
@@ -344,7 +346,7 @@ export const generateAIResponseFast = async (
       return firstResponse;
     }
 
-    // Pour les messages suivants : OPTIMISATION MAXIMALE avec attente audio
+    // Pour les messages suivants : STREAMING ULTRA-RAPIDE
     const systemPrompt = getSystemPrompt(context.target, context.difficulty);
     
     let messages = [
@@ -352,7 +354,7 @@ export const generateAIResponseFast = async (
       ...context.conversationHistory
     ];
 
-    // OPTIMISATION CRITIQUE : Paramètres ultra-rapides
+    // STREAMING CRITIQUE : Paramètres avec streaming activé
     const response = await fetch(OPENAI_PROXY_URL, {
       method: 'POST',
       headers: {
@@ -365,8 +367,9 @@ export const generateAIResponseFast = async (
           messages: messages,
           max_tokens: 50, // RÉDUCTION: 60 → 50 pour réponses plus courtes et rapides
           temperature: 0.7,
-          stream: false
+          stream: true // ACTIVATION DU STREAMING
         }
+        stream: true // ACTIVATION DU STREAMING AU NIVEAU PROXY
       }),
     });
 
@@ -375,37 +378,11 @@ export const generateAIResponseFast = async (
       throw new Error(errorData.error || 'Erreur lors de la communication avec OpenAI');
     }
 
-    const completion = await response.json();
+    // NOUVEAU: Traitement du streaming
+    return await processStreamingResponse(response, context.target, onPartialText, onSentenceReadyForAudio);
 
-    const message = completion.choices[0]?.message?.content || "Pardon ?";
-    const shouldEndCall = message.includes("[END_CALL]");
-    const cleanMessage = message.replace("[END_CALL]", "").trim();
-
-    // OPTIMISATION CRITIQUE: Générer l'audio OpenAI ET ATTENDRE avant le callback
-    const audioUrl = await generateOpenAIAudioSync(cleanMessage, context.target);
-    
-    // NOUVEAU: Callback SEULEMENT quand l'audio OpenAI est prêt
-    if (onTextReady && audioUrl) {
-      onTextReady(cleanMessage);
-      
-      // Jouer immédiatement l'audio OpenAI (déjà prêt)
-      playOpenAIAudioDirectly(audioUrl);
-      onTextReady(cleanMessage);
-    }
-
-    // Émotion simplifiée et rapide
-    let emotion: AIResponse['emotion'] = 'neutral';
-    if (cleanMessage.includes('?')) emotion = 'interested';
-    else if (cleanMessage.includes('mais') || cleanMessage.includes('non')) emotion = 'skeptical';
-    else if (cleanMessage.includes('occupé') || cleanMessage.includes('temps')) emotion = 'annoyed';
-    else if (cleanMessage.includes('oui') || cleanMessage.includes('bien')) emotion = 'positive';
-
-    return {
-      message: cleanMessage,
-      shouldEndCall,
-      emotion
-    };
   } catch (error) {
+    console.error('❌ Erreur génération IA:', error);
     const fallbackMessage = "Pardon ?";
     if (onTextReady) {
       onTextReady(fallbackMessage);
@@ -417,6 +394,129 @@ export const generateAIResponseFast = async (
       emotion: 'neutral'
     };
   }
+};
+
+// NOUVELLE FONCTION: Traitement du streaming de réponse IA
+const processStreamingResponse = async (
+  response: Response,
+  target: string,
+  onPartialText?: (partialText: string) => void,
+  onSentenceReadyForAudio?: (sentence: string) => void
+): Promise<AIResponse> => {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('Pas de stream disponible');
+  }
+
+  const decoder = new TextDecoder();
+  let accumulatedText = '';
+  let sentenceBuffer = '';
+  let shouldEndCall = false;
+  
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.trim() === '') continue;
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          
+          if (data === '[DONE]') {
+            break;
+          }
+          
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content || '';
+            
+            if (content) {
+              accumulatedText += content;
+              sentenceBuffer += content;
+              
+              // Callback pour le texte partiel (feedback visuel)
+              if (onPartialText) {
+                onPartialText(accumulatedText);
+              }
+              
+              // Détecter les fins de phrase pour génération audio immédiate
+              const sentences = extractCompleteSentences(sentenceBuffer);
+              for (const sentence of sentences) {
+                if (sentence.trim() && onSentenceReadyForAudio) {
+                  // Générer et jouer l'audio immédiatement
+                  generateAndPlaySegmentAudio(sentence, target, onSentenceReadyForAudio);
+                }
+                // Retirer la phrase du buffer
+                sentenceBuffer = sentenceBuffer.replace(sentence, '').trim();
+              }
+            }
+          } catch (e) {
+            // Ignorer les chunks malformés
+            continue;
+          }
+        }
+      }
+    }
+    
+    // Traiter le reste du buffer s'il y en a
+    if (sentenceBuffer.trim() && onSentenceReadyForAudio) {
+      generateAndPlaySegmentAudio(sentenceBuffer, target, onSentenceReadyForAudio);
+    }
+    
+  } finally {
+    reader.releaseLock();
+  }
+  
+  // Vérifier si l'appel doit se terminer
+  shouldEndCall = accumulatedText.includes("[END_CALL]");
+  const cleanMessage = accumulatedText.replace("[END_CALL]", "").trim();
+  
+  // Émotion simplifiée
+  let emotion: AIResponse['emotion'] = 'neutral';
+  if (cleanMessage.includes('?')) emotion = 'interested';
+  else if (cleanMessage.includes('mais') || cleanMessage.includes('non')) emotion = 'skeptical';
+  else if (cleanMessage.includes('occupé') || cleanMessage.includes('temps')) emotion = 'annoyed';
+  else if (cleanMessage.includes('oui') || cleanMessage.includes('bien')) emotion = 'positive';
+
+  return {
+    message: cleanMessage,
+    shouldEndCall,
+    emotion
+  };
+};
+
+// NOUVELLE FONCTION: Extraire les phrases complètes d'un buffer de texte
+const extractCompleteSentences = (buffer: string): string[] => {
+  const sentences: string[] = [];
+  
+  // Patterns pour détecter les fins de phrase
+  const sentenceEndPatterns = [
+    /[.!?]\s+/g,  // Ponctuation suivie d'espace
+    /[.!?]$/g,    // Ponctuation en fin de texte
+  ];
+  
+  let workingBuffer = buffer;
+  
+  for (const pattern of sentenceEndPatterns) {
+    const matches = [...workingBuffer.matchAll(pattern)];
+    
+    for (const match of matches) {
+      if (match.index !== undefined) {
+        const sentence = workingBuffer.substring(0, match.index + match[0].length).trim();
+        if (sentence.length > 5) { // Phrases minimum 5 caractères
+          sentences.push(sentence);
+          workingBuffer = workingBuffer.substring(match.index + match[0].length);
+        }
+      }
+    }
+  }
+  
+  return sentences;
 };
 
 // NOUVELLE FONCTION CRITIQUE : Générer et jouer l'audio d'un segment immédiatement
@@ -437,14 +537,21 @@ async function generateAndPlaySegmentAudio(
       onSentenceReady(cleanSegment);
     }
 
-    // Générer et jouer l'audio immédiatement
-    const audioUrl = await generateOpenAIAudioSync(cleanSegment, target);
-    if (audioUrl) {
-      await playOpenAIAudioDirectly(audioUrl);
-    } else {
-      // Fallback vers synthèse navigateur
-      await playTextImmediately(cleanSegment);
-    }
+    // NOUVEAU: Générer et jouer l'audio en arrière-plan sans bloquer
+    generateOpenAIAudioSync(cleanSegment, target).then(audioUrl => {
+      if (audioUrl) {
+        playOpenAIAudioDirectly(audioUrl);
+      } else {
+        // Fallback vers synthèse navigateur
+        playTextImmediately(cleanSegment);
+      }
+    }).catch(error => {
+      console.error('Erreur génération audio segment:', error);
+      // Fallback silencieux vers synthèse navigateur
+      playTextImmediately(cleanSegment).catch(fallbackError => {
+        console.error('Erreur fallback audio:', fallbackError);
+      });
+    });
   } catch (error) {
     console.error('Erreur génération audio segment:', error);
     // Fallback silencieux vers synthèse navigateur

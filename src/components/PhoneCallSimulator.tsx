@@ -212,14 +212,14 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       const aiResponse = await generateAIResponseFast(
         contextForAI, 
         false,
-        undefined, // onTextReady
+        undefined, // onTextReady (pas utilisé pour les messages suivants)
         (partialText) => {
           // Callback pour le texte partiel (feedback visuel)
           setPartialAIText(partialText);
+          setAiThinking(false); // Désactiver "L'IA réfléchit" dès le premier texte
         },
         (sentence) => {
-          // Callback quand une phrase complète est prête
-          setAiThinking(false);
+          // Callback quand une phrase complète est prête pour l'audio
           console.log('🎵 Phrase IA prête:', sentence);
         }
       );
@@ -239,9 +239,9 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       setTimeout(() => {
         phoneCallService.setAISpeaking(false);
         setIsAISpeaking(false);
-        setAiThinking(false);
         setPartialAIText('');
-      }, 500);
+        processingResponseRef.current = false;
+      }, 1000); // Délai pour laisser l'audio se terminer
 
       // Terminer l'appel si demandé par l'IA
       if (aiResponse.shouldEndCall) {
@@ -250,7 +250,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       }
 
     } catch (error) {
-      setAiThinking(false);
       setPartialAIText('');
       setError('Erreur de connexion avec l\'IA.');
       
@@ -279,6 +278,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     } finally {
       // CRITIQUE : Toujours remettre les états à false
       processingResponseRef.current = false;
+      setAiThinking(false);
     }
   };
 

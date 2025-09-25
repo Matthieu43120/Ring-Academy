@@ -46,6 +46,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
       console.log('🚀 Starting streaming chat completion...');
       
       try {
+          rawBody: event.body
         const streamingResponse = await handleStreamingChatCompletion(payload);
         
         return {

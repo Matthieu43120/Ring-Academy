@@ -419,6 +419,43 @@ export const generateAIResponseFast = async (
   }
 };
 
+// NOUVELLE FONCTION CRITIQUE : Générer et jouer l'audio d'un segment immédiatement
+async function generateAndPlaySegmentAudio(
+  segment: string, 
+  target: string,
+  onSentenceReady?: (sentence: string) => void
+): Promise<void> {
+  try {
+    // Nettoyer le segment
+    const cleanSegment = segment.replace(/[[\]]/g, '').trim();
+    if (cleanSegment.length < 5) return;
+
+    console.log('🎵 Génération audio segment:', cleanSegment);
+
+    // Callback immédiat pour indiquer qu'une phrase est prête
+    if (onSentenceReady) {
+      onSentenceReady(cleanSegment);
+    }
+
+    // Générer et jouer l'audio immédiatement
+    const audioUrl = await generateOpenAIAudioSync(cleanSegment, target);
+    if (audioUrl) {
+      await playOpenAIAudioDirectly(audioUrl);
+    } else {
+      // Fallback vers synthèse navigateur
+      await playTextImmediately(cleanSegment);
+    }
+  } catch (error) {
+    console.error('Erreur génération audio segment:', error);
+    // Fallback silencieux vers synthèse navigateur
+    try {
+      await playTextImmediately(segment);
+    } catch (fallbackError) {
+      console.error('Erreur fallback audio:', fallbackError);
+    }
+  }
+}
+
 // OPTIMISATION MAJEURE : Génération audio OpenAI SYNCHRONE avec modèle plus rapide
 const generateOpenAIAudioSync = async (text: string, target: string): Promise<string | undefined> => {
   try {
@@ -442,7 +479,7 @@ const generateOpenAIAudioSync = async (text: string, target: string): Promise<st
           model: "tts-1", // OPTIMISATION: tts-1 est plus rapide que tts-1-hd
           voice: voice,
           input: text,
-          speed: 1.1 // OPTIMISATION: Légèrement plus rapide pour réduire la durée
+          speed: 1.15 // OPTIMISATION: 1.1 → 1.15 pour encore plus de rapidité
         }
       }),
     });
@@ -537,10 +574,10 @@ const loadAudioFast = async (audioUrl: string): Promise<HTMLAudioElement> => {
     audio.preload = 'auto';
     audio.crossOrigin = 'anonymous';
     
-    // Timeout augmenté de 2000ms à 5000ms pour éviter les timeouts
+    // Timeout optimisé pour le streaming
     const timeout = setTimeout(() => {
       reject(new Error('Audio loading timeout'));
-    }, 5000); // CORRECTION: 2000ms → 5000ms pour plus de temps de chargement
+    }, 3000); // OPTIMISATION: 5000ms → 3000ms pour plus de réactivité
     
     audio.addEventListener('canplaythrough', () => {
       clearTimeout(timeout);

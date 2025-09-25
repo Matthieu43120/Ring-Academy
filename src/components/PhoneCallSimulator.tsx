@@ -19,6 +19,8 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   const [isMuted, setIsMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [partialAIText, setPartialAIText] = useState('');
   
   const [conversationContext, setConversationContext] = useState<ConversationContext>({
     target: config.target,
@@ -96,6 +98,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   const handleFirstAIResponse = async () => {
     setError(null);
     setIsAISpeaking(true);
+    setAiThinking(true);
 
     try {
       // Générer la réponse IA
@@ -103,7 +106,10 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
         target: config.target,
         difficulty: config.difficulty,
         conversationHistory: []
-      }, true);
+      }, true, undefined, undefined, (sentence) => {
+        // Callback quand une phrase est prête
+        setAiThinking(false);
+      });
 
       // CRITIQUE: Ajouter à l'historique ET à la ref
       const newHistory = [{ role: 'assistant' as const, content: aiResponse.message }];
@@ -133,6 +139,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       }
 
     } catch (error) {
+      setAiThinking(false);
       setError('Erreur de connexion avec l\'IA.');
       
       // Fallback ultime
@@ -190,6 +197,8 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     processingResponseRef.current = true;
     setError(null);
     setIsAISpeaking(true);
+    setAiThinking(true);
+    setPartialAIText('');
 
     try {
       // CRITIQUE: Utiliser l'historique de la ref (le plus à jour)
@@ -200,7 +209,20 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       };
       
       // Générer la réponse IA
-      const aiResponse = await generateAIResponseFast(contextForAI, false);
+      const aiResponse = await generateAIResponseFast(
+        contextForAI, 
+        false,
+        undefined, // onTextReady
+        (partialText) => {
+          // Callback pour le texte partiel (feedback visuel)
+          setPartialAIText(partialText);
+        },
+        (sentence) => {
+          // Callback quand une phrase complète est prête
+          setAiThinking(false);
+          console.log('🎵 Phrase IA prête:', sentence);
+        }
+      );
       
 
       // CRITIQUE: Ajouter la réponse IA à l'historique ET à la ref
@@ -213,24 +235,13 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       }));
       conversationHistoryRef.current = updatedHistory;
       
-      // Jouer l'audio avec la meilleure méthode disponible
-      if (!isMuted) {
-        const { playTextWithBestMethod } = await import('../services/openai');
-        playTextWithBestMethod(aiResponse.message, config.target).then(() => {
-          // CRITIQUE: Informer que l'IA a fini de parler
-          phoneCallService.setAISpeaking(false);
-          setIsAISpeaking(false);
-        }).catch((error) => {
-          console.error('❌ Erreur synthèse:', error);
-          phoneCallService.setAISpeaking(false);
-          setIsAISpeaking(false);
-        });
-      } else {
-        setTimeout(() => {
-          phoneCallService.setAISpeaking(false);
-          setIsAISpeaking(false);
-        }, 1000);
-      }
+      // L'audio est déjà géré par le streaming, juste nettoyer les états
+      setTimeout(() => {
+        phoneCallService.setAISpeaking(false);
+        setIsAISpeaking(false);
+        setAiThinking(false);
+        setPartialAIText('');
+      }, 500);
 
       // Terminer l'appel si demandé par l'IA
       if (aiResponse.shouldEndCall) {
@@ -239,6 +250,8 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       }
 
     } catch (error) {
+      setAiThinking(false);
+      setPartialAIText('');
       setError('Erreur de connexion avec l\'IA.');
       
       // Fallback avec synthèse vocale
@@ -449,6 +462,24 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
                 </div>
               )}
 
+              {aiThinking && callState === 'connected' && (
+                <div className="bg-blue-900/50 border border-blue-500 rounded-lg p-3">
+                  <div className="flex items-center justify-center space-x-2 text-blue-300">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <span className="ml-2 text-sm">L'IA réfléchit...</span>
+                  </div>
+                </div>
+              )}
+
+              {partialAIText && callState === 'connected' && (
+                <div className="bg-green-900/50 border border-green-500 rounded-lg p-3">
+                  <p className="text-green-300 text-sm text-center">
+                    💬 {partialAIText}...
+                  </p>
+                </div>
+              )}
               {error && (
                 <div className="bg-red-900/50 border border-red-500 rounded-lg p-3 mt-4">
                   <p className="text-red-300 text-sm">{error}</p>
@@ -488,7 +519,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
 
             <div className="text-center mt-6">
               <p className="text-gray-400 text-sm">
-                Parlez naturellement, l'IA vous écoute
+                {aiThinking ? 'L\'IA génère sa réponse...' : 'Parlez naturellement, l\'IA vous écoute'}
               </p>
             </div>
           </div>

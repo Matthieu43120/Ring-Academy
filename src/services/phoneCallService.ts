@@ -397,7 +397,7 @@ export class PhoneCallService {
           this.silenceTimer = setTimeout(() => {
             this.stopRecordingAndTranscribe();
           }, 600); // AMÉLIORATION: 800ms → 600ms pour transcription plus rapide
-        }
+        }, 500); // OPTIMISATION: 600ms → 500ms pour encore plus de réactivité
       }
 
       requestAnimationFrame(checkAudioLevel);
@@ -447,7 +447,7 @@ export class PhoneCallService {
     const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
     
     // ULTRA-OPTIMISATION: Taille minimale encore plus petite
-    if (audioBlob.size < 600) { // AMÉLIORATION: 800 → 600 pour accepter plus d'audio court
+    if (audioBlob.size < 500) { // OPTIMISATION: 600 → 500 pour accepter encore plus d'audio court
       return;
     }
 
@@ -457,7 +457,7 @@ export class PhoneCallService {
       // AMÉLIORATION CRITIQUE: Transcription avec timeout pour éviter les blocages
       const transcriptionPromise = transcribeAudio(audioBlob);
       const timeoutPromise = new Promise<string>((_, reject) => {
-        setTimeout(() => reject(new Error('Transcription timeout')), 2500); // 3s → 2.5s
+        setTimeout(() => reject(new Error('Transcription timeout')), 2000); // OPTIMISATION: 2.5s → 2s
       });
       
       const transcription = await Promise.race([transcriptionPromise, timeoutPromise]);
@@ -491,7 +491,7 @@ export class PhoneCallService {
       // Résoudre après les deux sonneries
       setTimeout(() => {
         resolve();
-      }, 1500); // RÉDUCTION: 1800ms → 1500ms
+      }, 1200); // OPTIMISATION: 1500ms → 1200ms pour démarrage plus rapide
     });
   }
 
@@ -506,14 +506,14 @@ export class PhoneCallService {
 
     // Fréquences de sonnerie classique
     oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
-    oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime + 0.2); // RÉDUCTION: 0.25 → 0.2
+    oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime + 0.15); // OPTIMISATION: 0.2 → 0.15
     
     // Volume
     gainNode.gain.setValueAtTime(0.15, this.audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime + 0.4); // RÉDUCTION: 0.5 → 0.4
+    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime + 0.3); // OPTIMISATION: 0.4 → 0.3
 
     oscillator.start(this.audioContext.currentTime);
-    oscillator.stop(this.audioContext.currentTime + 0.4); // RÉDUCTION: 0.5 → 0.4
+    oscillator.stop(this.audioContext.currentTime + 0.3); // OPTIMISATION: 0.4 → 0.3
   }
 
   // Arrêter l'enregistrement

@@ -54,7 +54,9 @@ export async function generateAIResponseFast(
     });
 
     if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('❌ Détails erreur OpenAI:', errorData);
+      throw new Error(`Erreur HTTP ${response.status}: ${errorData.error || errorData.details || 'Erreur inconnue'}`);
     }
 
     const finalMessage = await processStreamingResponse(response, onPartialText, onSentenceReadyForAudio, onTextReady);
@@ -416,7 +418,9 @@ export async function analyzeCall(
     });
 
     if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('❌ Détails erreur analyse:', errorData);
+      throw new Error(`Erreur HTTP ${response.status}: ${errorData.error || errorData.details || 'Erreur inconnue'}`);
     }
 
     const result = await response.json();

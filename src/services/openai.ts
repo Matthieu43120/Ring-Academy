@@ -1,602 +1,291 @@
-  onTextReady?: (text: string) => void
-// Service pour la gestion des appels téléphoniques simulés - ULTRA-OPTIMISÉ avec transcription continue
-export class PhoneCallService {
-  private mediaRecorder: MediaRecorder | null = null;
-      console.log('🎵 Phrase finale du buffer:', sentenceBuffer);
-  private audioChunks: Blob[] = [];
-  private stream: MediaStream | null = null;
-  private isRecording = false;
-  console.log('📡 Début traitement streaming...');
+// Configuration de l'API OpenAI
+const OPENAI_PROXY_URL = '/.netlify/functions/openai-proxy';
+const OPENAI_AUDIO_URL = '/.netlify/functions/openai-audio';
 
-  private onTranscriptionCallback?: (text: string) => void;
-  private silenceTimer: NodeJS.Timeout | null = null;
-  private audioContext: AudioContext | null = null;
-  private analyser: AnalyserNode | null = null;
-  let hasStartedProcessing = false;
+// Interface pour les paramètres de génération de réponse IA
+interface AIResponseParams {
+  messages: Array<{
+    role: 'system' | 'user' | 'assistant';
+    content: string;
+  }>;
+  target: string;
+  onPartialText?: (text: string) => void;
+  onSentenceReadyForAudio?: (sentence: string) => void;
+  onTextReady?: (text: string) => void;
+}
+
+// Fonction pour générer une réponse IA rapide avec streaming
+export async function generateAIResponseFast(params: AIResponseParams): Promise<string> {
+  const { messages, target, onPartialText, onSentenceReadyForAudio, onTextReady } = params;
   
-  console.log('✅ Message IA final:', cleanMessage, 'shouldEndCall:', shouldEndCall);
+  console.log('🚀 Démarrage streaming IA...');
   
-  // Callback final avec le texte complet
-  if (onTextReady && cleanMessage) {
-    onTextReady(cleanMessage);
-  }
-  
-  // NOUVEAU: Reconnaissance vocale continue avec interimResults
-  private recognition: any = null;
-  private isListening = false;
-  private currentTranscript = '';
-  private finalTranscript = '';
-  private lastSentenceTime = 0;
-  private sentenceEndTimer: NodeJS.Timeout | null = null;
-  private lastSentMessage = ''; // Protection contre les doublons
-  private isProcessingMessage = false; // NOUVEAU: Protection contre les envois multiples
-  private isAISpeaking = false; // CRITIQUE: Savoir si l'IA parle pour ignorer la reconnaissance
-
-  constructor() {
-    this.setupAudioContext();
-    this.setupSpeechRecognition();
-  }
-
-  private setupAudioContext() {
-    try {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    } catch (error) {
-      console.warn('AudioContext non supporté:', error);
-    }
-  }
-
-  // NOUVEAU: Configuration de la reconnaissance vocale continue
-  private setupSpeechRecognition() {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      this.recognition = new SpeechRecognition();
-      
-      // CONFIGURATION ULTRA-RAPIDE
-      this.recognition.continuous = true;        // Écoute continue
-      this.recognition.interimResults = true;    // Résultats partiels en temps réel
-      this.recognition.lang = 'fr-FR';
-      this.recognition.maxAlternatives = 1;      // Une seule alternative pour plus de rapidité
-      
-      this.setupRecognitionHandlers();
-      console.log('🎤 ULTRA-FAST: Reconnaissance vocale configurée avec interimResults');
-    } else {
-      console.warn('⚠️ Reconnaissance vocale non supportée, fallback vers MediaRecorder');
-    }
-  }
-
-  // NOUVEAU: Gestionnaires d'événements pour la reconnaissance vocale
-  private setupRecognitionHandlers() {
-    if (!this.recognition) return;
-
-    this.recognition.onresult = (event: any) => {
-      // CRITIQUE: Ignorer si l'IA parle
-      if (this.isAISpeaking) {
-        return;
-      }
-
-      let interimTranscript = '';
-      let finalTranscript = '';
-
-      // Traiter tous les résultats
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
-        }
-      }
-
-      // ULTRA-OPTIMISATION: Détecter fin de phrase en temps réel
-      this.processTranscriptInRealTime(finalTranscript, interimTranscript);
-    };
-
-    this.recognition.onend = () => {
-      // CORRECTION CRITIQUE: Redémarrer automatiquement SEULEMENT si on écoute encore
-      if (this.isListening && !this.isAISpeaking) {
-        setTimeout(() => {
-          if (this.isListening && !this.isAISpeaking) {
-            try {
-              this.recognition.start();
-            } catch (error) {
-            }
-          }
-        }, 100);
-      } else {
-      }
-    };
-
-    this.recognition.onerror = (event: any) => {
-      // CORRECTION: Redémarrer même en cas d'erreur pour maintenir la conversation
-      if (event.error === 'no-speech' || event.error === 'audio-capture') {
-        setTimeout(() => {
-          if (this.isListening && !this.isAISpeaking) {
-            try {
-              this.recognition.start();
-            } catch (error) {
-            }
-          }
-        }, 500);
-      }
-    };
-
-    this.recognition.onstart = () => {
-    };
-  }
-
-  // NOUVEAU: Traitement en temps réel de la transcription
-  private processTranscriptInRealTime(finalText: string, interimText: string) {
-    // CRITIQUE: Ignorer si l'IA parle
-    if (this.isAISpeaking) {
-      return;
-    }
-
-    // Mettre à jour les transcriptions
-    if (finalText) {
-      this.finalTranscript += finalText;
-    }
-
-    this.currentTranscript = this.finalTranscript + interimText;
-
-    // DÉTECTION ULTRA-RAPIDE de fin de phrase
-    if (finalText) {
-      this.detectSentenceEnd(this.finalTranscript);
-    } else if (interimText && !this.isProcessingMessage) {
-      // Même sur les résultats intermédiaires, détecter les pauses
-      this.detectPotentialSentenceEnd(this.currentTranscript);
-    }
-  }
-
-  // NOUVEAU: Détection de fin de phrase sur texte final
-  private detectSentenceEnd(text: string) {
-    const trimmedText = text.trim();
-    
-    // Vérifier si c'est une phrase complète
-    if (this.isCompleteSentence(trimmedText)) {
-      this.sendTranscriptionToAI(trimmedText);
-      this.resetTranscription();
-    }
-  }
-
-  // AMÉLIORATION: Détection potentielle de fin de phrase avec protection
-  private detectPotentialSentenceEnd(text: string) {
-    if (this.isProcessingMessage || this.isAISpeaking) {
-      return;
-    }
-
-    const trimmedText = text.trim();
-    
-    // Annuler le timer précédent
-    if (this.sentenceEndTimer) {
-      clearTimeout(this.sentenceEndTimer);
-    }
-
-    // Si on a du texte et qu'il semble complet, attendre un peu avant d'envoyer
-    if (trimmedText.length > 10 && this.isCompleteSentence(trimmedText)) {
-      this.sentenceEndTimer = setTimeout(() => {
-        if (!this.isProcessingMessage && !this.isAISpeaking) {
-          this.sendTranscriptionToAI(trimmedText);
-          this.resetTranscription();
-        }
-      }, 2500); // AUGMENTATION: 2000ms → 2500ms pour éviter les coupures
-    }
-  }
-
-  // CORRECTION MAJEURE: Vérifier si c'est une phrase complète avec critères ADAPTÉS AU CONTEXTE
-  private isCompleteSentence(text: string): boolean {
-    if (!text || text.length < 5) return false;
-
-    const lowerText = text.toLowerCase().trim();
-    
-    // NOUVEAU: Ignorer seulement les fragments très courts sans contexte
-    if (lowerText.length < 8 && (
-        lowerText === 'oui' || lowerText === 'allô' || lowerText === 'non' ||
-        lowerText === 'bonjour' || lowerText === 'bonsoir' || lowerText === 'salut'
-    )) {
-      return false;
-    }
-
-    // Détecter ponctuation de fin
-    const endsWithPunctuation = /[.!?]$/.test(text.trim());
-    
-    // CORRECTION MAJEURE: Phrases de réponse courantes dans un contexte téléphonique
-    const phoneResponsePatterns = [
-      // Présentations
-      /^(bonjour|bonsoir|salut)/i,
-      /je suis .+/i,
-      /je m'appelle .+/i,
-      /c'est .+/i,
-      
-      // Réponses aux questions
-      /j'ai eu .+/i,                    // "j'ai eu votre numéro sur Internet"
-      /sur internet/i,                  // "sur Internet"
-      /par .+/i,                        // "par un collègue"
-      /grâce à .+/i,                    // "grâce à LinkedIn"
-      /via .+/i,                        // "via votre site"
-      
-      // Propositions commerciales
-      /j'aimerais .+/i,
-      /je voudrais .+/i,
-      /pouvez-vous .+/i,
-      /est-ce que .+/i,
-      /avez-vous .+/i,
-      /disponible .+/i,
-      /rendez-vous .+/i,
-      /nous accompagnons .+/i,
-      /on accompagne .+/i,
-      /je vous appelle .+/i,
-      /organiser .+/i,
-      
-      // Réponses aux objections
-      /c'est gratuit/i,
-      /pas cher/i,
-      /très efficace/i,
-      /ça marche/i,
-      /bien sûr/i,
-      /exactement/i,
-      /tout à fait/i,
-      
-      // Phrases avec contexte suffisant
-      /.+ (sur|par|avec|pour|dans|chez) .+/i  // Phrases avec prépositions = contexte
-    ];
-
-    const isPhoneResponse = phoneResponsePatterns.some(pattern => pattern.test(text.trim()));
-    
-    // CORRECTION: Réduire encore la longueur minimale pour les réponses courtes mais pertinentes
-    const hasMinLength = text.trim().length > 12; // RÉDUCTION: 20 → 12 caractères
-    
-    // NOUVEAU: Accepter les réponses courtes mais contextuelles
-    const isShortButContextual = text.trim().length >= 8 && (
-      lowerText.includes('internet') ||
-      lowerText.includes('linkedin') ||
-      lowerText.includes('site') ||
-      lowerText.includes('collègue') ||
-      lowerText.includes('gratuit') ||
-      lowerText.includes('efficace') ||
-      lowerText.includes('marche')
-    );
-    
-    // CORRECTION MAJEURE: Accepter plus facilement les phrases pertinentes
-    const result = endsWithPunctuation || 
-                   (isPhoneResponse && hasMinLength) || 
-                   isShortButContextual ||
-                   text.trim().length > 40;
-    
-    return result;
-  }
-
-  // AMÉLIORATION CRITIQUE: Envoyer la transcription à l'IA avec protection renforcée
-  private sendTranscriptionToAI(text: string) {
-    if (!text.trim() || !this.onTranscriptionCallback || this.isProcessingMessage || this.isAISpeaking) {
-      return;
-    }
-
-    const cleanText = text.trim();
-    
-    // PROTECTION CONTRE LES DOUBLONS
-    if (cleanText === this.lastSentMessage) {
-      return;
-    }
-
-    const now = Date.now();
-    
-    // CORRECTION: Réduire le délai minimum entre envois
-    if (now - this.lastSentenceTime < 2000) { // RÉDUCTION: 3000ms → 2000ms
-      return;
-    }
-
-    // MARQUER comme en cours de traitement
-    this.isProcessingMessage = true;
-    this.lastSentenceTime = now;
-    this.lastSentMessage = cleanText;
-    
-    this.onTranscriptionCallback(cleanText);
-
-    // Libérer après un délai pour permettre le traitement
-    setTimeout(() => {
-      this.isProcessingMessage = false;
-    }, 3000); // RÉDUCTION: 4s → 3s
-  }
-
-  // NOUVEAU: Réinitialiser la transcription
-  private resetTranscription() {
-    this.finalTranscript = '';
-    this.currentTranscript = '';
-    
-    if (this.sentenceEndTimer) {
-      clearTimeout(this.sentenceEndTimer);
-      this.sentenceEndTimer = null;
-    }
-  }
-
-  // CORRECTION CRITIQUE: Méthodes pour contrôler l'état de l'IA
-  setAISpeaking(speaking: boolean) {
-    this.isAISpeaking = speaking;
-    
-    if (speaking) {
-      // Quand l'IA commence à parler, réinitialiser la transcription
-      this.resetTranscription();
-      this.isProcessingMessage = false;
-    }
-  }
-
-  // Démarrer l'enregistrement continu ULTRA-OPTIMISÉ
-  async startContinuousRecording(onTranscription: (text: string) => void): Promise<void> {
-    this.onTranscriptionCallback = onTranscription;
-
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 16000 // Optimisé pour Whisper
-        } 
-      });
-
-      // PRIORITÉ: Utiliser la reconnaissance vocale si disponible
-      if (this.recognition) {
-        this.startSpeechRecognition();
-      } else {
-        // Fallback vers l'ancienne méthode
-        this.setupVoiceActivityDetection();
-      }
-      
-    } catch (error) {
-      throw new Error('Impossible d\'accéder au microphone');
-    }
-  }
-
-  // NOUVEAU: Démarrer la reconnaissance vocale continue
-  private startSpeechRecognition() {
-    if (!this.recognition) return;
-
-    this.isListening = true;
-    this.isAISpeaking = false; // IMPORTANT: Reset de l'état IA
-    this.resetTranscription();
-    this.lastSentMessage = '';
-    console.log('🚀 Démarrage streaming IA...');
-    
-    // STREAMING CRITIQUE : Paramètres avec streaming activé
-    
-    try {
-      this.recognition.start();
-    } catch (error) {
-      // Fallback vers l'ancienne méthode
-      this.setupVoiceActivityDetection();
-    }
-  }
-
-  // Méthode fallback (ancienne méthode optimisée)
-  private setupVoiceActivityDetection() {
-    if (!this.stream || !this.audioContext) return;
-
-    const source = this.audioContext.createMediaStreamSource(this.stream);
-    this.analyser = this.audioContext.createAnalyser();
-    this.analyser.fftSize = 256;
-    source.connect(this.analyser);
-
-    this.monitorAudioLevel();
-  }
-
-  private monitorAudioLevel() {
-    if (!this.analyser) return;
-
-    const bufferLength = this.analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-
-    const checkAudioLevel = () => {
-      if (!this.analyser) return;
-
-      this.analyser.getByteFrequencyData(dataArray);
-      const average = dataArray.reduce((a, b) => a + b) / bufferLength;
-
-      // ULTRA-OPTIMISATION: Seuil de détection très sensible
-      const voiceThreshold = 12; // ULTRA-RÉDUCTION: 15 → 12 pour détecter instantanément
-
-      if (average > voiceThreshold) {
-        // Voix détectée
-        if (this.silenceTimer) {
-          clearTimeout(this.silenceTimer);
-          this.silenceTimer = null;
-        }
-        
-        if (!this.isRecording) {
-          this.startRecording();
-        }
-      } else {
-        // Silence détecté
-        if (this.isRecording && !this.silenceTimer) {
-          this.silenceTimer = setTimeout(() => {
-            this.stopRecordingAndTranscribe();
-          }, 600); // AMÉLIORATION: 800ms → 600ms pour transcription plus rapide
-        }
-      }
-
-      requestAnimationFrame(checkAudioLevel);
-    };
-
-    checkAudioLevel();
-  }
-
-  private startRecording() {
-    if (!this.stream || this.isRecording) return;
-
-    this.audioChunks = [];
-    
-    try {
-      this.mediaRecorder = new MediaRecorder(this.stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-    } catch (error) {
-      // Fallback pour Safari
-      this.mediaRecorder = new MediaRecorder(this.stream);
-    }
-
-    this.mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        this.audioChunks.push(event.data);
-      }
-    };
-
-    this.mediaRecorder.onstop = () => {
-      this.processRecording();
-    };
-
-    this.mediaRecorder.start();
-    this.isRecording = true;
-  }
-
-  private stopRecordingAndTranscribe() {
-    if (this.mediaRecorder && this.isRecording) {
-      this.mediaRecorder.stop();
-      this.isRecording = false;
-    }
-  }
-
-  private async processRecording() {
-    if (this.audioChunks.length === 0) return;
-
-    const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-    
-    // ULTRA-OPTIMISATION: Taille minimale encore plus petite
-    if (audioBlob.size < 500) { // OPTIMISATION: 600 → 500 pour accepter encore plus d'audio court
-      return;
-    }
-
-    try {
-      const { transcribeAudio } = await import('./openai');
-      
-      // AMÉLIORATION CRITIQUE: Transcription avec timeout pour éviter les blocages
-      const transcriptionPromise = transcribeAudio(audioBlob);
-      const timeoutPromise = new Promise<string>((_, reject) => {
-        setTimeout(() => reject(new Error('Transcription timeout')), 2000); // OPTIMISATION: 2.5s → 2s
-      });
-      
-      const transcription = await Promise.race([transcriptionPromise, timeoutPromise]);
-      
-      if (transcription.trim() && this.onTranscriptionCallback) {
-        this.onTranscriptionCallback(transcription.trim());
-      } else {
-      }
-    } catch (error) {
-      // En cas d'erreur, on continue sans bloquer
-    }
-  }
-
-  // Jouer la sonnerie ULTRA-RAPIDE
-  async playRingtone(): Promise<void> {
-    return new Promise((resolve) => {
-      // Créer une sonnerie synthétique
-      if (!this.audioContext) {
-        setTimeout(resolve, 1000); // RÉDUCTION: 1200ms → 1000ms
-        return;
-      }
-
-      // Première sonnerie
-      this.playRingTone();
-      
-      // Deuxième sonnerie après 0.7s
-      setTimeout(() => {
-        this.playRingTone();
-        setTimeout(() => {
-          resolve();
-        }, 1200); // OPTIMISATION: 1500ms → 1200ms pour démarrage plus rapide
-      }, 700); // RÉDUCTION: 800ms → 700ms
-      
-      console.log('✅ Streaming terminé');
+  try {
+    const response = await fetch(OPENAI_PROXY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages,
+        target,
+        stream: true
+      }),
     });
-  }
 
-  private playRingTone() {
-    if (!this.audioContext) return;
-
-    const oscillator = this.audioContext.createOscillator();
-    const gainNode = this.audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(this.audioContext.destination);
-
-    // Fréquences de sonnerie classique
-    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
-    oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime + 0.15); // OPTIMISATION: 0.2 → 0.15
-    
-    // Volume
-    gainNode.gain.setValueAtTime(0.15, this.audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime + 0.3); // OPTIMISATION: 0.4 → 0.3
-
-    oscillator.start(this.audioContext.currentTime);
-    oscillator.stop(this.audioContext.currentTime + 0.3); // OPTIMISATION: 0.4 → 0.3
-  }
-
-  // Arrêter l'enregistrement
-  stopRecording() {
-    // Arrêter la reconnaissance vocale
-    if (this.recognition && this.isListening) {
-      this.isListening = false;
-      try {
-        this.recognition.stop();
-      } catch (error) {
-      }
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
     }
 
-    if (this.silenceTimer) {
-      clearTimeout(this.silenceTimer);
-      this.silenceTimer = null;
-    }
-
-    if (this.sentenceEndTimer) {
-      clearTimeout(this.sentenceEndTimer);
-      this.sentenceEndTimer = null;
-    }
-
-    if (this.mediaRecorder && this.isRecording) {
-      this.mediaRecorder.stop();
-      this.isRecording = false;
-    }
-
-    if (this.stream) {
-      this.stream.getTracks().forEach(track => {
-        track.stop();
-      });
-      this.stream = null;
-    }
-
-    if (this.audioContext && this.audioContext.state !== 'closed') {
-      this.audioContext.close().then(() => {
-      });
-      this.audioContext = null;
-    }
-
-    this.resetTranscription();
-    this.lastSentMessage = '';
-    this.isProcessingMessage = false;
-    this.isAISpeaking = false;
-  }
-
-  // Vérifier le support
-  isSupported(): boolean {
-    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && 
-             (window.MediaRecorder || 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window));
+    return await processStreamingResponse(response, target, onPartialText, onSentenceReadyForAudio, onTextReady);
+  } catch (error) {
+    console.error('❌ Erreur génération IA:', error);
+    throw error;
   }
 }
 
+// Fonction pour traiter la réponse streaming
 async function processStreamingResponse(
   response: Response,
   target: string,
   onPartialText?: (text: string) => void,
   onSentenceReadyForAudio?: (sentence: string) => void,
   onTextReady?: (text: string) => void
-) {
-  let hasStartedProcessing = false;
-  
-  return await processStreamingResponse(response, target, onPartialText, onSentenceReadyForAudio, onTextReady);
-  
-  if (!hasStartedProcessing) {
-    hasStartedProcessing = true;
-    console.log('🎯 Premier contenu reçu, démarrage traitement...');
+): Promise<string> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('Impossible de lire la réponse streaming');
   }
+
+  const decoder = new TextDecoder();
+  let accumulatedText = '';
+  let sentenceBuffer = '';
+  let hasStartedProcessing = false;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) {
+        console.log('✅ Streaming terminé');
+        break;
+      }
+
+      const chunk = decoder.decode(value, { stream: true });
+      console.log('📦 Chunk reçu:', chunk);
+
+      // Traiter chaque ligne du chunk
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          
+          if (data === '[DONE]') {
+            console.log('🏁 Signal de fin reçu');
+            break;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content || '';
+            
+            if (content) {
+              if (!hasStartedProcessing) {
+                hasStartedProcessing = true;
+                console.log('🎯 Premier contenu reçu, démarrage traitement...');
+              }
+
+              accumulatedText += content;
+              sentenceBuffer += content;
+
+              // Callback pour le texte partiel
+              if (onPartialText) {
+                onPartialText(accumulatedText);
+              }
+
+              // Détecter les phrases complètes
+              const completeSentences = extractCompleteSentences(sentenceBuffer);
+              
+              for (const sentence of completeSentences) {
+                console.log('🎵 Phrase complète détectée:', sentence);
+                
+                if (onSentenceReadyForAudio) {
+                  onSentenceReadyForAudio(sentence);
+                }
+                
+                // Retirer la phrase du buffer
+                sentenceBuffer = sentenceBuffer.replace(sentence, '').trim();
+              }
+            }
+          } catch (parseError) {
+            console.warn('⚠️ Erreur parsing JSON:', parseError);
+          }
+        }
+      }
+    }
+
+    // Traiter le reste du buffer s'il y en a
+    if (sentenceBuffer.trim()) {
+      console.log('🎵 Phrase finale du buffer:', sentenceBuffer);
+      if (onSentenceReadyForAudio) {
+        onSentenceReadyForAudio(sentenceBuffer.trim());
+      }
+    }
+
+    const cleanMessage = accumulatedText.trim();
+    console.log('✅ Message IA final:', cleanMessage);
+    
+    // Callback final avec le texte complet
+    if (onTextReady && cleanMessage) {
+      onTextReady(cleanMessage);
+    }
+
+    return cleanMessage;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+// Fonction pour extraire les phrases complètes
+function extractCompleteSentences(text: string): string[] {
+  const sentences: string[] = [];
   
-  console.log('🎵 Phrase complète détectée:', sentence);
+  // Regex pour détecter les fins de phrases
+  const sentenceEndRegex = /[.!?]+\s+/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = sentenceEndRegex.exec(text)) !== null) {
+    const sentence = text.slice(lastIndex, match.index + match[0].length).trim();
+    if (sentence.length > 5) {
+      sentences.push(sentence);
+      lastIndex = match.index + match[0].length;
+    }
+  }
+
+  return sentences;
+}
+
+// Fonction pour générer l'audio OpenAI de manière synchrone
+export async function generateOpenAIAudioSync(text: string): Promise<ArrayBuffer> {
+  console.log('🎤 Génération audio pour:', text.substring(0, 50) + '...');
+  
+  try {
+    const response = await fetch(OPENAI_AUDIO_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: text,
+        voice: 'nova',
+        model: 'tts-1'
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur génération audio: ${response.status}`);
+    }
+
+    const audioBuffer = await response.arrayBuffer();
+    console.log('✅ Audio généré, taille:', audioBuffer.byteLength);
+    return audioBuffer;
+  } catch (error) {
+    console.error('❌ Erreur génération audio:', error);
+    throw error;
+  }
+}
+
+// Fonction pour jouer l'audio OpenAI directement
+export async function playOpenAIAudioDirectly(audioBuffer: ArrayBuffer): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      audioContext.decodeAudioData(audioBuffer.slice(0), (decodedData) => {
+        const source = audioContext.createBufferSource();
+        source.buffer = decodedData;
+        source.connect(audioContext.destination);
+        
+        source.onended = () => {
+          console.log('🔊 Lecture audio terminée');
+          resolve();
+        };
+        
+        source.start(0);
+        console.log('🔊 Début lecture audio');
+      }, (error) => {
+        console.error('❌ Erreur décodage audio:', error);
+        reject(error);
+      });
+    } catch (error) {
+      console.error('❌ Erreur lecture audio:', error);
+      reject(error);
+    }
+  });
+}
+
+// Fonction pour générer et jouer un segment audio
+export async function generateAndPlaySegmentAudio(text: string): Promise<void> {
+  try {
+    console.log('🎵 Génération et lecture pour:', text.substring(0, 30) + '...');
+    const audioBuffer = await generateOpenAIAudioSync(text);
+    await playOpenAIAudioDirectly(audioBuffer);
+  } catch (error) {
+    console.error('❌ Erreur génération/lecture segment:', error);
+    // Fallback vers la synthèse vocale du navigateur
+    await playTextImmediately(text);
+  }
+}
+
+// Fonction fallback pour jouer le texte immédiatement avec la synthèse vocale
+export async function playTextImmediately(text: string): Promise<void> {
+  return new Promise((resolve) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 1.1;
+      utterance.pitch = 1.0;
+      
+      utterance.onend = () => {
+        console.log('🔊 Synthèse vocale terminée');
+        resolve();
+      };
+      
+      utterance.onerror = () => {
+        console.warn('⚠️ Erreur synthèse vocale');
+        resolve();
+      };
+      
+      speechSynthesis.speak(utterance);
+      console.log('🔊 Début synthèse vocale');
+    } else {
+      console.warn('⚠️ Synthèse vocale non supportée');
+      resolve();
+    }
+  });
+}
+
+// Fonction pour transcrire l'audio (utilisée par phoneCallService)
+export async function transcribeAudio(audioBlob: Blob): Promise<string> {
+  try {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'audio.webm');
+
+    const response = await fetch(OPENAI_AUDIO_URL, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur transcription: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result.text || '';
+  } catch (error) {
+    console.error('❌ Erreur transcription:', error);
+    return '';
+  }
 }

@@ -58,7 +58,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
         return {
           statusCode: 500,
           headers: corsHeaders,
-          body: JSON.stringify({ error: `Streaming error: ${streamError.message}` }),
+          body: JSON.stringify({ error: "Erreur de streaming depuis le proxy OpenAI. Veuillez vérifier les logs Netlify pour plus de détails." }),
         };
       }
     }

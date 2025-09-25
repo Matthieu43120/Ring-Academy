@@ -36,18 +36,31 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
       };
     }
 
-    // Si streaming est demandé, utiliser Server-Sent Events
+    // Si streaming est demandé pour chat completion
     if (stream && type === 'chatCompletion') {
-      return {
-        statusCode: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        },
-        body: await handleStreamingResponse(payload),
-      };
+      console.log('🚀 Starting streaming chat completion...');
+      
+      try {
+        const streamingResponse = await handleStreamingChatCompletion(payload);
+        
+        return {
+          statusCode: 200,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
+          body: streamingResponse,
+        };
+      } catch (streamError) {
+        console.error('❌ Streaming error:', streamError);
+        return {
+          statusCode: 500,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: `Streaming error: ${streamError.message}` }),
+        };
+      }
     }
 
     // Comportement normal pour les requêtes non-streaming
@@ -87,9 +100,11 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
   }
 };
 
-// Nouvelle fonction pour gérer le streaming
-async function handleStreamingResponse(payload: any): Promise<string> {
+// Nouvelle fonction pour gérer le streaming des réponses chat completion
+async function handleStreamingChatCompletion(payload: any): Promise<string> {
   try {
+    console.log('📡 Making streaming request to OpenAI...');
+    
     // Ajouter le paramètre stream à la payload
     const streamPayload = { ...payload, stream: true };
     
@@ -105,12 +120,14 @@ async function handleStreamingResponse(payload: any): Promise<string> {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('OpenAI Streaming API error:', errorData);
-      return `data: ${JSON.stringify({ error: `OpenAI API error: ${response.statusText}` })}\n\n`;
+      throw new Error(`OpenAI API error: ${response.statusText}`);
     }
 
     if (!response.body) {
-      return `data: ${JSON.stringify({ error: "No response body from OpenAI" })}\n\n`;
+      throw new Error("No response body from OpenAI");
     }
+
+    console.log('✅ OpenAI streaming response received, processing...');
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -122,6 +139,7 @@ async function handleStreamingResponse(payload: any): Promise<string> {
         const { done, value } = await reader.read();
         
         if (done) {
+          console.log('✅ Streaming completed');
           break;
         }
 

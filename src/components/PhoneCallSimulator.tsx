@@ -197,6 +197,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     processingResponseRef.current = true;
     setError(null);
     setIsAISpeaking(true);
+    phoneCallService.setAISpeaking(true); // CRITIQUE: Informer le service immédiatement
     setAiThinking(true);
     setPartialAIText('');
 
@@ -212,7 +213,12 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       const aiResponse = await generateAIResponseFast(
         contextForAI, 
         false,
-        undefined, // onTextReady (pas utilisé pour les messages suivants)
+        (finalText) => {
+          // Callback quand le texte final est prêt
+          console.log('✅ Texte IA final reçu:', finalText);
+          setAiThinking(false);
+          setPartialAIText('');
+        },
         (partialText) => {
           // Callback pour le texte partiel (feedback visuel)
           setPartialAIText(partialText);
@@ -235,21 +241,24 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       }));
       conversationHistoryRef.current = updatedHistory;
       
-      // L'audio est déjà géré par le streaming, juste nettoyer les états
+      // NOUVEAU: Attendre que l'audio soit terminé avant de libérer
       setTimeout(() => {
         phoneCallService.setAISpeaking(false);
         setIsAISpeaking(false);
         setPartialAIText('');
         processingResponseRef.current = false;
-      }, 1000); // Délai pour laisser l'audio se terminer
+      }, 2000); // AUGMENTATION: 1000ms → 2000ms pour laisser plus de temps à l'audio
 
       // Terminer l'appel si demandé par l'IA
       if (aiResponse.shouldEndCall) {
-        // CORRECTION: Terminer immédiatement pour éviter les doublons
-        handleEndCall();
+        // CORRECTION: Terminer avec délai pour laisser l'audio finir
+        setTimeout(() => {
+          handleEndCall();
+        }, 3000); // Délai pour que l'audio se termine
       }
 
     } catch (error) {
+      console.error('❌ Erreur handleAIResponse:', error);
       setPartialAIText('');
       setError('Erreur de connexion avec l\'IA.');
       
@@ -265,6 +274,10 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
           setIsAISpeaking(false);
         });
       } else {
+        setIsAISpeaking(false);
+        phoneCallService.setAISpeaking(false);
+      }
+      
       // Ajouter le message de fallback à l'historique
       const fallbackAIMessage = { role: 'assistant' as const, content: fallbackMessage };
       const updatedHistory = [...conversationHistoryRef.current, fallbackAIMessage];
@@ -274,7 +287,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
         conversationHistory: updatedHistory
       }));
       conversationHistoryRef.current = updatedHistory;
-      }
     } finally {
       // CRITIQUE : Toujours remettre les états à false
       processingResponseRef.current = false;

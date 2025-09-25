@@ -167,7 +167,7 @@ export class PhoneCallService {
           this.sendTranscriptionToAI(trimmedText);
           this.resetTranscription();
         }
-      }, 2500); // AUGMENTATION: 2000ms → 2500ms pour éviter les coupures
+      }, 1500); // OPTIMISATION: 2500ms → 1500ms pour plus de réactivité
     }
   }
 
@@ -270,10 +270,12 @@ export class PhoneCallService {
     const now = Date.now();
     
     // CORRECTION: Réduire le délai minimum entre envois
-    if (now - this.lastSentenceTime < 2000) { // RÉDUCTION: 3000ms → 2000ms
+    if (now - this.lastSentenceTime < 1500) { // OPTIMISATION: 2000ms → 1500ms
       return;
     }
 
+    console.log('📤 Envoi transcription à l\'IA:', cleanText);
+    
     // MARQUER comme en cours de traitement
     this.isProcessingMessage = true;
     this.lastSentenceTime = now;
@@ -284,7 +286,7 @@ export class PhoneCallService {
     // Libérer après un délai pour permettre le traitement
     setTimeout(() => {
       this.isProcessingMessage = false;
-    }, 3000); // RÉDUCTION: 4s → 3s
+    }, 2000); // OPTIMISATION: 3s → 2s
   }
 
   // NOUVEAU: Réinitialiser la transcription
@@ -301,11 +303,15 @@ export class PhoneCallService {
   // CORRECTION CRITIQUE: Méthodes pour contrôler l'état de l'IA
   setAISpeaking(speaking: boolean) {
     this.isAISpeaking = speaking;
+    console.log('🤖 IA speaking state:', speaking);
     
     if (speaking) {
       // Quand l'IA commence à parler, réinitialiser la transcription
       this.resetTranscription();
       this.isProcessingMessage = false;
+    } else {
+      // Quand l'IA arrête de parler, permettre à nouveau la transcription
+      console.log('🎤 Utilisateur peut maintenant parler');
     }
   }
 

@@ -19,7 +19,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      headers: corsHeaders,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: "Method Not Allowed" }),
     };
   }
@@ -39,7 +39,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
       console.error('OPENAI_API_KEY not configured');
       return {
         statusCode: 500,
-        headers: corsHeaders,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: "OpenAI API key not configured" }),
       };
     }
@@ -62,8 +62,16 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
         });
 
         if (!response.ok) {
-          const errorData = await response.text();
-          console.error('OpenAI Streaming API error:', errorData);
+          console.error(`OpenAI Streaming API returned status: ${response.status}`);
+          console.error(`OpenAI Streaming API Content-Type: ${response.headers.get('Content-Type')}`);
+          let errorData = 'Unknown error from OpenAI API';
+          try {
+            errorData = await response.text();
+          } catch (textError) {
+            console.error('Failed to read OpenAI error response as text:', textError);
+            errorData = `Failed to read error body (status: ${response.status})`;
+          }
+          console.error('OpenAI Streaming API error details:', errorData);
           throw new Error(`OpenAI API error (${response.status}): ${errorData}`);
         }
 
@@ -108,7 +116,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
         console.error('❌ Streaming error:', streamError);
         return {
           statusCode: 500,
-          headers: corsHeaders,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           body: JSON.stringify({ error: "Erreur de streaming depuis le proxy OpenAI. Veuillez vérifier les logs Netlify pour plus de détails." }),
         };
       }
@@ -125,14 +133,21 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     });
 
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error('OpenAI API error:', errorData);
-      console.error('OpenAI API status:', response.status);
+      console.error(`OpenAI API returned status: ${response.status}`);
+      console.error(`OpenAI API Content-Type: ${response.headers.get('Content-Type')}`);
+      let errorData = 'Unknown error from OpenAI API';
+      try {
+        errorData = await response.text();
+      } catch (textError) {
+        console.error('Failed to read OpenAI error response as text:', textError);
+        errorData = `Failed to read error body (status: ${response.status})`;
+      }
+      console.error('OpenAI API error details:', errorData);
       return {
         statusCode: response.status,
-        headers: corsHeaders,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          error: `OpenAI API error (${response.status}): ${errorData || response.statusText}`,
+          error: `OpenAI API error (${response.status}): ${errorData}`,
           details: errorData
         }),
       };
@@ -157,7 +172,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     
     return {
       statusCode: 500,
-      headers: corsHeaders,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         error: error.message || "Internal Server Error",
         type: error.name || "UnknownError"

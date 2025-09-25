@@ -184,11 +184,25 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
                 break;
               }
 
+              // --- NOUVEAU LOG POUR DÉBOGAGE DU CHUNK DATA ---
+              console.log('DEBUG: Data chunk before JSON.parse:', data);
+              console.log('DEBUG: Data chunk type:', typeof data);
+              console.log('DEBUG: Data chunk length:', data ? data.length : 'null');
+              if (data && typeof data === 'string' && data.length > 0) {
+                console.log('DEBUG: Data chunk premier caractère:', data.charAt(0));
+                console.log('DEBUG: Data chunk code ASCII du premier caractère:', data.charCodeAt(0));
+                console.log('DEBUG: Data chunk 50 premiers caractères:', data.substring(0, 50));
+              }
+              // --- FIN NOUVEAU LOG ---
+
               try {
                 const parsed = JSON.parse(data);
                 streamResult += `data: ${JSON.stringify(parsed)}\n\n`;
               } catch (e) {
-                console.warn('⚠️ Chunk JSON malformé d\'OpenAI:', data, e);
+                console.error('❌ ERREUR PARSING CHUNK OpenAI:', e);
+                console.error('❌ Chunk problématique complet:', data);
+                console.error('❌ Type du chunk problématique:', typeof data);
+                console.error('❌ Longueur du chunk problématique:', data ? data.length : 'null');
                 continue;
               }
             }
@@ -212,50 +226,4 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
       };
     }
 
-    // Comportement normal pour les requêtes non-streaming
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      console.error(`L'API OpenAI a retourné le statut: ${response.status}`);
-      const contentType = response.headers.get('Content-Type');
-      console.error(`Content-Type de l'API OpenAI (erreur): ${contentType}`);
-      throw new Error(`Erreur API OpenAI (${response.status}): Échec de l'obtention de la réponse non-streaming d'OpenAI.`);
-    }
-
-    const completion = await response.json();
-
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: JSON.stringify(completion),
-    };
-
-  } catch (error) {
-    console.error("Erreur dans la fonction proxy OpenAI:", error);
     
-    console.error("Détails de l'erreur:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      rawBody: event.body
-    });
-    
-    return {
-      statusCode: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        error: error.message || "Erreur interne du serveur",
-        type: error.name || "Erreur inconnue"
-      }),
-    };
-  }
-};
-
-export { handler };

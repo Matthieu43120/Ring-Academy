@@ -24,13 +24,16 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     };
   }
 
+  console.log('Raw event.body at start:', event.body);
   // Log pour diagnostiquer le contenu de la requête
   console.log('Received event body:', event.body);
   console.log('Event body type:', typeof event.body);
   console.log('Event body length:', event.body ? event.body.length : 'null');
 
   try {
-    const { type, payload, stream = false } = JSON.parse(event.body || "{}");
+    // Convertir explicitement event.body en string pour s'assurer que JSON.parse reçoit une chaîne
+    const eventBodyString = typeof event.body === 'string' ? event.body : String(event.body);
+    const { type, payload, stream = false } = JSON.parse(eventBodyString || "{}");
 
     if (!process.env.OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY not configured');

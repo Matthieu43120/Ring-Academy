@@ -131,11 +131,25 @@ async function processStreamingResponse(
       console.log('📦 Chunk reçu:', chunk);
 
       // Traiter chaque ligne du chunk
+      const lines = chunk.split('\n');
       
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const data = line.slice(6);
           
+          if (data === '[DONE]') {
+            console.log('🏁 Signal de fin reçu');
+            break;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content || '';
+            
+            if (content) {
+              if (!hasStartedProcessing) {
+                hasStartedProcessing = true;
+                console.log('🎯 Premier contenu reçu, démarrage traitement...');
               }
 
               accumulatedText += content;
@@ -144,6 +158,15 @@ async function processStreamingResponse(
               // Callback pour le texte partiel
               if (onPartialText) {
                 onPartialText(accumulatedText);
+              }
+            }
+          } catch (parseError) {
+            console.warn('⚠️ Erreur parsing JSON:', parseError);
+          }
+        }
+      }
+    }
+
     const cleanMessage = accumulatedText.trim();
     console.log('✅ Message IA final:', cleanMessage);
     
@@ -373,6 +396,7 @@ export async function analyzeCall(
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       console.error('❌ Détails erreur analyse:', errorData);
       throw new Error(`Erreur HTTP ${response.status}: ${errorData.error || errorData.details || 'Erreur inconnue'}`);
+    }
     return {
       score: 50,
       strengths: ['Participation à la simulation'],

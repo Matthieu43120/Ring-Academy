@@ -237,9 +237,12 @@ export async function generateOpenAIAudioSync(text: string): Promise<ArrayBuffer
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        text: text,
-        voice: 'nova',
-        model: 'tts-1'
+        type: 'speech',
+        payload: {
+          text: text,
+          voice: 'nova',
+          model: 'tts-1'
+        }
       }),
     });
 

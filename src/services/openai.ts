@@ -107,7 +107,6 @@ IMPORTANT:
 async function processStreamingResponse(
   response: Response,
   onPartialText?: (text: string) => void,
-  onSentenceReadyForAudio?: (text: string) => void,
   onTextReady?: (text: string) => void
 ): Promise<string> {
   const reader = response.body?.getReader();
@@ -118,7 +117,6 @@ async function processStreamingResponse(
   const decoder = new TextDecoder();
   let accumulatedText = '';
   let hasStartedProcessing = false;
-  let sentenceBuffer = '';
 
   try {
     while (true) {
@@ -140,6 +138,7 @@ async function processStreamingResponse(
           const data = line.slice(6);
           
           if (data === '[DONE]') {
+            console.log('🏁 Signal de fin reçu');
             break;
           }
 
@@ -148,6 +147,11 @@ async function processStreamingResponse(
             const content = parsed.choices?.[0]?.delta?.content || '';
             
             if (content) {
+              if (!hasStartedProcessing) {
+                hasStartedProcessing = true;
+                console.log('🎯 Premier contenu reçu, démarrage traitement...');
+              }
+
               accumulatedText += content;
               sentenceBuffer += content;
 
@@ -162,7 +166,7 @@ async function processStreamingResponse(
         }
       }
     }
-    
+
     const cleanMessage = accumulatedText.trim();
     console.log('✅ Message IA final:', cleanMessage);
     
@@ -393,19 +397,6 @@ export async function analyzeCall(
       console.error('❌ Détails erreur analyse:', errorData);
       throw new Error(`Erreur HTTP ${response.status}: ${errorData.error || errorData.details || 'Erreur inconnue'}`);
     }
-
-    const result = await response.json();
-    const analysisText = result.choices?.[0]?.message?.content || '';
-    
-    try {
-      const analysis = JSON.parse(analysisText);
-      return analysis;
-    } catch (parseError) {
-      console.error('❌ Erreur parsing analyse:', parseError);
-      throw new Error('Erreur lors du parsing de l\'analyse');
-    }
-  } catch (error) {
-    console.error('❌ Erreur analyse appel:', error);
     return {
       score: 50,
       strengths: ['Participation à la simulation'],

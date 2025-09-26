@@ -283,3 +283,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       console.log('📞 Connexion établie');
       setCallState('connected');
       callStateRef.current = 'connected';
+    }
+  }
+  )
+}

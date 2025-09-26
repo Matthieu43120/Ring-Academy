@@ -60,6 +60,13 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
             details: decodeError.message
           }),
         };
+        // --- NOUVEAU LOG POUR DÉBOGAGE DE LA CONDITION ---
+        console.log(`DEBUG: Before if condition - stream: ${stream}, type: ${type}`);
+        console.log(`DEBUG: stream type: ${typeof stream}, type type: ${typeof type}`);
+        console.log(`DEBUG: stream === true: ${stream === true}, type === 'chatCompletion': ${type === 'chatCompletion'}`);
+        console.log(`DEBUG: Condition result: ${stream && type === 'chatCompletion'}`);
+        // --- FIN NOUVEAU LOG ---
+
       }
     }
 
@@ -155,6 +162,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
       }
 
       if (!response.body) {
+          console.log('ℹ️ Traitement de la requête comme non-streaming.');
         throw new Error("Pas de corps de réponse d'OpenAI");
       }
 
@@ -174,6 +182,10 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
             break;
           }
 
+          // --- NOUVEAU LOG POUR DÉBOGAGE DU CONTENT-TYPE DE LA RÉPONSE ---
+          const responseContentType = response.headers.get('Content-Type');
+          console.log(`DEBUG: Non-streaming response Content-Type from OpenAI: ${responseContentType}`);
+          // --- FIN NOUVEAU LOG ---
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
           

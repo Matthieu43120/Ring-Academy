@@ -125,6 +125,10 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
   
   // --- NOUVEAU LOG POUR DÉBOGAGE ---
   console.log(`DEBUG: Parsed body - type: ${type}, stream: ${stream}`);
+  console.log(`DEBUG: Type of 'stream' variable: ${typeof stream}, Value of 'stream' variable: ${stream}`);
+  console.log(`DEBUG: stream === true: ${stream === true}`);
+  console.log(`DEBUG: type === 'chatCompletion': ${type === 'chatCompletion'}`);
+  console.log(`DEBUG: stream && type === 'chatCompletion': ${stream && type === 'chatCompletion'}`);
   // --- FIN NOUVEAU LOG ---
 
   if (!process.env.OPENAI_API_KEY) {
@@ -139,6 +143,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
   try {
     // Si le streaming est demandé pour la complétion de chat
     if (stream && type === 'chatCompletion') {
+      console.log('DEBUG: Entering streaming block');
       console.log('🚀 Démarrage de la complétion de chat en streaming...');
       
       const streamPayload = { ...payload, stream: true };
@@ -245,6 +250,8 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
       };
 
     } else {
+      console.log('DEBUG: Entering non-streaming block');
+      console.log('ℹ️ Traitement de la requête comme non-streaming.');
       // Comportement normal pour les requêtes non-streaming
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',

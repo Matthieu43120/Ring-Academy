@@ -116,11 +116,12 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
 
   const { type, payload, stream } = parsedBody;
   
-  // Explicitly convert stream to boolean, handling potential string "true"
-  const isStreaming = typeof stream === 'string' ? stream === 'true' : Boolean(stream);
+  // Extract stream from payload where it's actually located
+  const streamFromPayload = payload?.stream;
+  const isStreaming = typeof streamFromPayload === 'string' ? streamFromPayload === 'true' : Boolean(streamFromPayload);
   
   // --- NOUVEAU LOG POUR DÉBOGAGE ---
-  console.log(`DEBUG: Parsed body - type: ${type}, raw stream value: ${stream}, raw stream type: ${typeof stream}`);
+  console.log(`DEBUG: Parsed body - type: ${type}, raw stream value from payload: ${streamFromPayload}, raw stream type: ${typeof streamFromPayload}`);
   console.log(`DEBUG: isStreaming (boolean): ${isStreaming}`);
   // --- FIN NOUVEAU LOG ---
 
@@ -146,7 +147,8 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
       console.log('DEBUG: Entering streaming block');
       console.log('🚀 Démarrage de la complétion de chat en streaming...');
       
-      const streamPayload = { ...payload, stream: true };
+      // No need to add stream: true again, it's already in payload
+      const streamPayload = { ...payload };
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',

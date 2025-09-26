@@ -250,7 +250,23 @@ export async function generateOpenAIAudioSync(text: string): Promise<ArrayBuffer
       throw new Error(`Erreur génération audio: ${response.status}`);
     }
 
-    const audioBuffer = await response.arrayBuffer();
+    // La fonction Netlify renvoie un objet JSON avec l'audio en Base64
+    const result = await response.json();
+    const audioBase64 = result.audio;
+    
+    if (!audioBase64) {
+      throw new Error('Aucun audio reçu de la fonction Netlify');
+    }
+    
+    // Convertir le Base64 en ArrayBuffer
+    const binaryString = atob(audioBase64);
+    const audioBuffer = new ArrayBuffer(binaryString.length);
+    const uint8Array = new Uint8Array(audioBuffer);
+    
+    for (let i = 0; i < binaryString.length; i++) {
+      uint8Array[i] = binaryString.charCodeAt(i);
+    }
+    
     console.log('✅ Audio généré, taille:', audioBuffer.byteLength);
     return audioBuffer;
   } catch (error) {

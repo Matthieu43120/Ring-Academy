@@ -4,9 +4,10 @@ import { TrainingConfig } from '../pages/Training';
 
 interface TrainingFormProps {
   onStartTraining: (config: TrainingConfig) => void;
+  hasMicrophonePermission: boolean;
 }
 
-function TrainingForm({ onStartTraining }: TrainingFormProps) {
+function TrainingForm({ onStartTraining, hasMicrophonePermission }: TrainingFormProps) {
   const [target, setTarget] = useState('');
   const [difficulty, setDifficulty] = useState('');
   const [showInstructions, setShowInstructions] = useState(false);
@@ -225,16 +226,19 @@ function TrainingForm({ onStartTraining }: TrainingFormProps) {
           <div className="text-center pt-6">
             <button
               type="submit"
-              disabled={!target || !difficulty}
+              disabled={!target || !difficulty || !hasMicrophonePermission}
               className="bg-primary-600 text-white px-12 py-4 rounded-lg font-bold text-lg hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed hover:shadow-lg hover:scale-105 transition-all duration-300 flex items-center space-x-3 mx-auto"
             >
               <Play className="h-6 w-6" />
               <span>Lancer l'appel</span>
               <Target className="h-6 w-6" />
             </button>
-            {(!target || !difficulty) && (
+            {(!target || !difficulty || !hasMicrophonePermission) && (
               <p className="text-sm text-gray-500 mt-3">
-                Veuillez sélectionner un type de prospect et un niveau de difficulté
+                {!hasMicrophonePermission 
+                  ? 'Autorisation du microphone requise pour continuer'
+                  : 'Veuillez sélectionner un type de prospect et un niveau de difficulté'
+                }
               </p>
             )}
           </div>

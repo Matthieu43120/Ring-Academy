@@ -315,6 +315,32 @@ export class PhoneCallService {
     }
   }
 
+  // Nouvelle méthode pour demander la permission du microphone sans commencer l'enregistrement
+  async requestMicrophonePermission(): Promise<boolean> {
+    try {
+      console.log('🎤 Demande d\'autorisation du microphone...');
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000
+        } 
+      });
+
+      // Arrêter immédiatement le stream pour ne pas commencer l'enregistrement
+      stream.getTracks().forEach(track => {
+        track.stop();
+      });
+
+      console.log('✅ Permission du microphone accordée');
+      return true;
+    } catch (error) {
+      console.warn('❌ Permission du microphone refusée ou erreur:', error);
+      return false;
+    }
+  }
+
   // Démarrer l'enregistrement continu ULTRA-OPTIMISÉ
   async startContinuousRecording(onTranscription: (text: string) => void): Promise<void> {
     this.onTranscriptionCallback = onTranscription;

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import TrainingForm from '../components/TrainingForm';
 import PhoneCallSimulator from '../components/PhoneCallSimulator';
 import SessionSummary from '../components/SessionSummary';
 import { useAuth } from '../contexts/AuthContext';
-import { AlertTriangle, Play, Gift } from 'lucide-react';
+import { AlertTriangle, Play, Gift, Mic, MicOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { phoneCallService } from '../services/phoneCallService';
 
 export interface TrainingConfig {
   target: string;
@@ -24,11 +26,26 @@ function Training() {
   const [currentStep, setCurrentStep] = useState<'config' | 'call' | 'summary'>('config');
   const [trainingConfig, setTrainingConfig] = useState<TrainingConfig | null>(null);
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
+  const [hasMicrophonePermission, setHasMicrophonePermission] = useState<boolean | null>(null);
   const { user, saveSession, useCreditForSimulation, canUseFreeTrial, useFreeTrial, getCreditsInfo } = useAuth();
 
   const creditsInfo = getCreditsInfo();
   const hasCredits = creditsInfo.simulationsLeft > 0;
   const canUseTrial = canUseFreeTrial();
+
+  // Demander la permission du microphone dès le chargement de la page
+  useEffect(() => {
+    const requestPermission = async () => {
+      if (phoneCallService.isSupported()) {
+        const hasPermission = await phoneCallService.requestMicrophonePermission();
+        setHasMicrophonePermission(hasPermission);
+      } else {
+        setHasMicrophonePermission(false);
+      }
+    };
+
+    requestPermission();
+  }, []);
 
   const handleStartTraining = async (config: TrainingConfig) => {
     if (user) {
@@ -153,6 +170,49 @@ function Training() {
         </div>
       )}
 
+      {/* Alerte permission microphone */}
+      {currentStep === 'config' && hasMicrophonePermission === false && (
+        <div className="bg-red-50 border-2 border-red-200 p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-start space-x-4">
+              <div className="bg-red-500 p-2 rounded-lg">
+                <MicOff className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-red-900 mb-2">
+                  Accès au microphone requis
+                </h3>
+                <p className="text-red-800 mb-4">
+                  Pour utiliser les simulations d'appel, vous devez autoriser l'accès au microphone. 
+                  Veuillez actualiser la page et autoriser l'accès lorsque votre navigateur vous le demande.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors inline-flex items-center space-x-2"
+                  >
+                    <Mic className="h-5 w-5" />
+                    <span>Actualiser et autoriser</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation permission microphone */}
+      {currentStep === 'config' && hasMicrophonePermission === true && (hasCredits || canUseTrial) && (
+        <div className="bg-green-50 border-b border-green-200 p-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="flex items-center justify-center space-x-2 text-green-800">
+              <Mic className="h-5 w-5" />
+              <span className="font-semibold">Microphone autorisé - Prêt pour la simulation</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Indicateur de crédits restants */}
       {currentStep === 'config' && user && hasCredits && (
         <div className="bg-blue-50 border-b border-blue-200 p-4">
@@ -171,10 +231,13 @@ function Training() {
         </div>
       )}
 
-      {currentStep === 'config' && (hasCredits || canUseTrial) && (
+      {currentStep === 'config' && (hasCredits || canUseTrial) && hasMicrophonePermission === true && (
         <div className="py-8">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <TrainingForm onStartTraining={handleStartTraining} />
+            <TrainingForm 
+              onStartTraining={handleStartTraining} 
+              hasMicrophonePermission={hasMicrophonePermission}
+            />
           </div>
         </div>
       )}

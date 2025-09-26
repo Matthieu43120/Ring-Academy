@@ -170,7 +170,7 @@ async function processStreamingResponse(
                 console.log('🎵 Phrase complète détectée:', sentence);
                 
                 if (onSentenceReadyForAudio) {
-                  await onSentenceReadyForAudio(sentence);
+                  onSentenceReadyForAudio(sentence);
                 }
                 
                 // Retirer la phrase du buffer
@@ -188,7 +188,7 @@ async function processStreamingResponse(
     if (sentenceBuffer.trim()) {
       console.log('🎵 Phrase finale du buffer:', sentenceBuffer);
       if (onSentenceReadyForAudio) {
-        await onSentenceReadyForAudio(sentenceBuffer.trim());
+        onSentenceReadyForAudio(sentenceBuffer.trim());
       }
     }
 

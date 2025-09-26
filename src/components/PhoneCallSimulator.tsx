@@ -22,6 +22,12 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   const [aiThinking, setAiThinking] = useState(false);
   const [partialAIText, setPartialAIText] = useState('');
   
+  // File d'attente audio pour des réponses fluides
+  const audioQueueRef = useRef<string[]>([]);
+  const isAudioPlayingRef = useRef(false);
+  const aiResponseCompleteRef = useRef(false);
+  const shouldEndCallAfterAudioRef = useRef(false);
+  
   const [conversationContext, setConversationContext] = useState<ConversationContext>({
     target: config.target,
     difficulty: config.difficulty,
@@ -45,6 +51,53 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   useEffect(() => {
     conversationHistoryRef.current = conversationContext.conversationHistory;
   }, [conversationContext.conversationHistory]);
+
+  // Callback pour traiter les phrases audio de manière asynchrone
+  const onSentenceReadyForAudio = useCallback((sentence: string) => {
+    if (!isMuted) {
+      console.log('🎵 Ajout à la file d\'attente audio:', sentence);
+      audioQueueRef.current.push(sentence);
+      
+      // Démarrer la lecture si aucun audio n'est en cours
+      if (!isAudioPlayingRef.current) {
+        processAudioQueue();
+      }
+    }
+  }, [isMuted]);
+
+  // Traiter la file d'attente audio
+  const processAudioQueue = useCallback(async () => {
+    if (isAudioPlayingRef.current || audioQueueRef.current.length === 0) {
+      // Si la file est vide et que la réponse IA est complète, libérer le micro
+      if (audioQueueRef.current.length === 0 && aiResponseCompleteRef.current) {
+        console.log('🎤 Tous les audios joués, libération du micro');
+        phoneCallService.setAISpeaking(false);
+        setIsAISpeaking(false);
+        
+        // Terminer l'appel si demandé
+        if (shouldEndCallAfterAudioRef.current) {
+          setTimeout(() => {
+            handleEndCall();
+          }, 500);
+        }
+      }
+      return;
+    }
+
+    isAudioPlayingRef.current = true;
+    const sentence = audioQueueRef.current.shift()!;
+    
+    try {
+      console.log('🔊 Lecture audio:', sentence);
+      await generateAndPlaySegmentAudio(sentence);
+    } catch (error) {
+      console.error('❌ Erreur lecture audio:', error);
+    } finally {
+      isAudioPlayingRef.current = false;
+      // Continuer avec le prochain segment
+      processAudioQueue();
+    }
+  }, []);
 
   // Timer de l'appel
   useEffect(() => {
@@ -98,7 +151,14 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   const handleFirstAIResponse = async () => {
     setError(null);
     setIsAISpeaking(true);
+    phoneCallService.setAISpeaking(true);
     setAiThinking(true);
+    
+    // Réinitialiser la file d'attente audio
+    audioQueueRef.current = [];
+    isAudioPlayingRef.current = false;
+    aiResponseCompleteRef.current = false;
+    shouldEndCallAfterAudioRef.current = false;
 
     try {
       // Préparer le contexte pour la première réponse
@@ -117,30 +177,22 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
           console.log('✅ Texte IA final reçu:', finalText);
           setAiThinking(false);
           setPartialAIText('');
+          aiResponseCompleteRef.current = true;
+          // Déclencher le traitement de la file d'attente pour s'assurer que tous les audios sont joués
+          processAudioQueue();
         },
         (partialText) => {
           // Callback pour le texte partiel (feedback visuel)
           setPartialAIText(partialText);
           setAiThinking(false); // Désactiver "L'IA réfléchit" dès le premier texte
         },
-        (sentence) => {
-          // Callback quand une phrase est prête
-          console.log('🎵 Phrase IA prête:', sentence);
-          if (!isMuted) { // Only play if not muted
-            return generateAndPlaySegmentAudio(sentence);
-          }
-          return Promise.resolve(); // Return a resolved promise if muted
-        }
+        onSentenceReadyForAudio
       );
 
       // CRITIQUE: Ajouter à l'historique ET à la ref
       const newHistory = [{ role: 'assistant' as const, content: aiResponse.message }];
       setConversationContext(prev => ({ ...prev, conversationHistory: newHistory }));
       conversationHistoryRef.current = newHistory;
-
-      // CRITIQUE: Informer que l'IA a fini de parler après que tout l'audio ait été joué
-      phoneCallService.setAISpeaking(false);
-      setIsAISpeaking(false);
 
     } catch (error) {
       setAiThinking(false);
@@ -158,6 +210,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
             setIsAISpeaking(false);
           });
       } else {
+        phoneCallService.setAISpeaking(false);
         setIsAISpeaking(false);
       }
     }
@@ -204,6 +257,12 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     phoneCallService.setAISpeaking(true); // CRITIQUE: Informer le service immédiatement
     setAiThinking(true);
     setPartialAIText('');
+    
+    // Réinitialiser la file d'attente audio
+    audioQueueRef.current = [];
+    isAudioPlayingRef.current = false;
+    aiResponseCompleteRef.current = false;
+    shouldEndCallAfterAudioRef.current = false;
 
     try {
       // CRITIQUE: Utiliser l'historique de la ref (le plus à jour)
@@ -222,20 +281,16 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
           console.log('✅ Texte IA final reçu:', finalText);
           setAiThinking(false);
           setPartialAIText('');
+          aiResponseCompleteRef.current = true;
+          // Déclencher le traitement de la file d'attente pour s'assurer que tous les audios sont joués
+          processAudioQueue();
         },
         (partialText) => {
           // Callback pour le texte partiel (feedback visuel)
           setPartialAIText(partialText);
           setAiThinking(false); // Désactiver "L'IA réfléchit" dès le premier texte
         },
-        (sentence) => {
-          // Callback quand une phrase complète est prête pour l'audio
-          console.log('🎵 Phrase IA prête:', sentence);
-          if (!isMuted) {
-            return generateAndPlaySegmentAudio(sentence);
-          }
-          return Promise.resolve();
-        }
+        onSentenceReadyForAudio
       );
       
 
@@ -249,18 +304,12 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       }));
       conversationHistoryRef.current = updatedHistory;
       
-      // Libérer immédiatement car l'attente audio est gérée par generateAIResponseFast
-      phoneCallService.setAISpeaking(false);
-      setIsAISpeaking(false);
       setPartialAIText('');
       processingResponseRef.current = false;
 
       // Terminer l'appel si demandé par l'IA
       if (aiResponse.shouldEndCall) {
-        // CORRECTION: Terminer avec délai pour laisser l'audio finir
-        setTimeout(() => {
-          handleEndCall();
-        }, 3000); // Délai pour que l'audio se termine
+        shouldEndCallAfterAudioRef.current = true;
       }
 
     } catch (error) {
@@ -305,7 +354,16 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     setEndTime(callEndTime);
     setCallState('ended');
     callStateRef.current = 'ended';
+    
+    // Nettoyer la file d'attente audio
+    audioQueueRef.current = [];
+    isAudioPlayingRef.current = false;
+    aiResponseCompleteRef.current = false;
+    shouldEndCallAfterAudioRef.current = false;
+    
     phoneCallService.stopRecording();
+    phoneCallService.setAISpeaking(false);
+    setIsAISpeaking(false);
 
     // Calculer la durée finale précise
     const finalDuration = startTime ? Math.floor((callEndTime.getTime() - startTime.getTime()) / 1000) : callDuration;

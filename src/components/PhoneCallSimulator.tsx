@@ -282,4 +282,4 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       // Passer à l'état connecté
       console.log('📞 Connexion établie');
       setCallState('connected');
-      callStateRef.current
+      callStateRef.current = 'connected';

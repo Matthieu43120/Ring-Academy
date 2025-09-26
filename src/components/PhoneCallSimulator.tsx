@@ -22,7 +22,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   const [aiThinking, setAiThinking] = useState(false);
   const [partialAIText, setPartialAIText] = useState('');
   
-  // Ref pour gérer la fin d'appel après l'audio
   const shouldEndCallAfterAudioRef = useRef(false);
   
   const [conversationContext, setConversationContext] = useState<ConversationContext>({
@@ -31,72 +30,13 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     conversationHistory: []
   });
 
-  // ULTRA-OPTIMISATION: Refs pour éviter les race conditions
+  // Refs pour éviter les race conditions
   const callStateRef = useRef<CallState>('dialing');
   const processingResponseRef = useRef(false);
   const callStarted = useRef(false);
   
   // REF CRITIQUE: Historique de conversation en temps réel
   const conversationHistoryRef = useRef<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
-
-  // Synchroniser les refs avec les states
-  useEffect(() => {
-    callStateRef.current = callState;
-  }, [callState]);
-
-  useEffect(() => {
-    conversationHistoryRef.current = conversationContext.conversationHistory;
-  }, [conversationContext.conversationHistory]);
-
-  // Timer de l'appel
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (callState === 'connected' && startTime) {
-      interval = setInterval(() => {
-        setCallDuration(Math.floor((Date.now() - startTime.getTime()) / 1000));
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [callState, startTime]);
-
-  // Démarrer l'appel
-  useEffect(() => {
-    if (!callStarted.current) {
-      callStarted.current = true;
-      initiateCall();
-    }
-  }, []);
-
-  const initiateCall = async () => {
-    try {
-      setCallState('ringing');
-      callStateRef.current = 'ringing';
-      
-      // Jouer la sonnerie
-      await phoneCallService.playRingtone();
-      
-      // L'IA décroche - UTILISER LES REFS pour éviter les race conditions
-      setCallState('connected');
-      callStateRef.current = 'connected'; // CRITIQUE: Mettre à jour la ref immédiatement
-      setStartTime(new Date());
-      
-      // Première réponse de l'IA (obligatoire "Allô ?")
-      await handleFirstAIResponse();
-      
-      // ULTRA-OPTIMISATION: Activation micro immédiate
-      setTimeout(async () => {
-        if (phoneCallService.isSupported()) {
-          await phoneCallService.startContinuousRecording(handleUserSpeech);
-        } else {
-          setError('Microphone non supporté. Utilisez un navigateur compatible.');
-        }
-      }, 25); // ULTRA-RÉDUCTION: 50ms → 25ms
-      
-    } catch (error) {
-      setError('Impossible de démarrer l\'appel. Vérifiez vos permissions microphone.');
-    }
-  };
-
   const handleFirstAIResponse = async () => {
     setError(null);
     setIsAISpeaking(true);
@@ -323,7 +263,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       }));
       conversationHistoryRef.current = updatedHistory;
     } finally {
-      // CRITIQUE : Toujours remettre les états à false
       processingResponseRef.current = false;
       setAiThinking(false);
     }
@@ -337,7 +276,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     
     // Nettoyer les états audio
     shouldEndCallAfterAudioRef.current = false;
-    
     phoneCallService.stopRecording();
     phoneCallService.setAISpeaking(false);
     setIsAISpeaking(false);

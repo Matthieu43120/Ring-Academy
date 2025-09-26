@@ -131,25 +131,11 @@ async function processStreamingResponse(
       console.log('📦 Chunk reçu:', chunk);
 
       // Traiter chaque ligne du chunk
-      const lines = chunk.split('\n');
       
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const data = line.slice(6);
           
-          if (data === '[DONE]') {
-            console.log('🏁 Signal de fin reçu');
-            break;
-          }
-
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content || '';
-            
-            if (content) {
-              if (!hasStartedProcessing) {
-                hasStartedProcessing = true;
-                console.log('🎯 Premier contenu reçu, démarrage traitement...');
               }
 
               accumulatedText += content;
@@ -158,15 +144,6 @@ async function processStreamingResponse(
               // Callback pour le texte partiel
               if (onPartialText) {
                 onPartialText(accumulatedText);
-              }
-            }
-          } catch (parseError) {
-            console.warn('⚠️ Erreur parsing JSON:', parseError);
-          }
-        }
-      }
-    }
-
     const cleanMessage = accumulatedText.trim();
     console.log('✅ Message IA final:', cleanMessage);
     
@@ -396,30 +373,6 @@ export async function analyzeCall(
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       console.error('❌ Détails erreur analyse:', errorData);
       throw new Error(`Erreur HTTP ${response.status}: ${errorData.error || errorData.details || 'Erreur inconnue'}`);
-    }
-
-    const result = await response.json();
-    const analysisText = result.choices?.[0]?.message?.content || '';
-    
-    // Parser la réponse JSON
-    try {
-      const analysis = JSON.parse(analysisText);
-      console.log('✅ Analyse terminée:', analysis);
-      return analysis;
-    } catch (parseError) {
-      console.warn('⚠️ Erreur parsing analyse, utilisation fallback');
-      // Fallback si le parsing JSON échoue
-      return {
-        score: 75,
-        strengths: ['Bonne approche générale'],
-        recommendations: ['Continuer à pratiquer'],
-        detailedFeedback: analysisText || 'Analyse non disponible',
-        improvements: ['Améliorer la gestion des objections']
-      };
-    }
-  } catch (error) {
-    console.error('❌ Erreur analyse appel:', error);
-    // Retourner une analyse par défaut en cas d'erreur
     return {
       score: 50,
       strengths: ['Participation à la simulation'],

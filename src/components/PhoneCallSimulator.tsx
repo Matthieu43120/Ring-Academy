@@ -283,6 +283,11 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       console.log('📞 Connexion établie');
       setCallState('connected');
       callStateRef.current = 'connected';
+    } catch (error) {
+      console.error('❌ Erreur lors du démarrage de l\'appel:', error);
+      setError('Erreur lors de l\'établissement de la connexion');
+      setCallState('ended');
+      callStateRef.current = 'ended';
     }
   }
   )

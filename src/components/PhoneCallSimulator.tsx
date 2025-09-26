@@ -71,6 +71,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       // Si la file est vide et que la réponse IA est complète, libérer le micro
       if (audioQueueRef.current.length === 0 && aiResponseCompleteRef.current) {
         console.log('🎤 Tous les audios joués, libération du micro');
+        processingResponseRef.current = false;
         phoneCallService.setAISpeaking(false);
         setIsAISpeaking(false);
         
@@ -343,8 +344,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       }));
       conversationHistoryRef.current = updatedHistory;
     } finally {
-      // CRITIQUE : Toujours remettre les états à false
-      processingResponseRef.current = false;
       setAiThinking(false);
     }
   };

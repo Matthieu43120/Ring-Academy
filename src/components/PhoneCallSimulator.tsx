@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Phone, PhoneOff, Volume2, VolumeX } from 'lucide-react';
 import { TrainingConfig, SessionResult } from '../pages/Training';
-import { generateAIResponseFast, analyzeCall, ConversationContext } from '../services/openai';
+import { generateAIResponseFast, analyzeCall, ConversationContext, generateAndPlaySegmentAudio } from '../services/openai';
 import { phoneCallService } from '../services/phoneCallService';
 
 interface PhoneCallSimulatorProps {
@@ -231,6 +231,10 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
         (sentence) => {
           // Callback quand une phrase complète est prête pour l'audio
           console.log('🎵 Phrase IA prête:', sentence);
+          if (!isMuted) {
+            return generateAndPlaySegmentAudio(sentence);
+          }
+          return Promise.resolve();
         }
       );
       
@@ -245,13 +249,11 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       }));
       conversationHistoryRef.current = updatedHistory;
       
-      // NOUVEAU: Attendre que l'audio soit terminé avant de libérer
-      setTimeout(() => {
-        phoneCallService.setAISpeaking(false);
-        setIsAISpeaking(false);
-        setPartialAIText('');
-        processingResponseRef.current = false;
-      }, 2000); // AUGMENTATION: 1000ms → 2000ms pour laisser plus de temps à l'audio
+      // Libérer immédiatement car l'attente audio est gérée par generateAIResponseFast
+      phoneCallService.setAISpeaking(false);
+      setIsAISpeaking(false);
+      setPartialAIText('');
+      processingResponseRef.current = false;
 
       // Terminer l'appel si demandé par l'IA
       if (aiResponse.shouldEndCall) {
@@ -490,13 +492,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
               )}
 
               {partialAIText && callState === 'connected' && (
-                <div className="bg-green-900/50 border border-green-500 rounded-lg p-3">
-                  <p className="text-green-300 text-sm text-center">
-                    💬 {partialAIText}...
-                  </p>
-                </div>
-              )}
-              {error && (
                 <div className="bg-red-900/50 border border-red-500 rounded-lg p-3 mt-4">
                   <p className="text-red-300 text-sm">{error}</p>
                 </div>

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Phone, PhoneOff, Volume2, VolumeX } from 'lucide-react';
 import { TrainingConfig, SessionResult } from '../pages/Training';
-import { generateAIResponseFast, analyzeCall, ConversationContext, generateAndPlaySegmentAudio } from '../services/openai';
+import { generateAIResponseFast, analyzeCall, ConversationContext, generateOpenAIAudioSync, playOpenAIAudioDirectly } from '../services/openai';
 import { phoneCallService } from '../services/phoneCallService';
 
 interface PhoneCallSimulatorProps {
@@ -22,10 +22,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   const [aiThinking, setAiThinking] = useState(false);
   const [partialAIText, setPartialAIText] = useState('');
   
-  // File d'attente audio pour des réponses fluides
-  const audioQueueRef = useRef<string[]>([]);
-  const isAudioPlayingRef = useRef(false);
-  const aiResponseCompleteRef = useRef(false);
+  // Ref pour gérer la fin d'appel après l'audio
   const shouldEndCallAfterAudioRef = useRef(false);
   
   const [conversationContext, setConversationContext] = useState<ConversationContext>({
@@ -38,7 +35,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   const callStateRef = useRef<CallState>('dialing');
   const processingResponseRef = useRef(false);
   const callStarted = useRef(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   // REF CRITIQUE: Historique de conversation en temps réel
   const conversationHistoryRef = useRef<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
@@ -51,53 +47,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   useEffect(() => {
     conversationHistoryRef.current = conversationContext.conversationHistory;
   }, [conversationContext.conversationHistory]);
-
-  // Callback pour traiter les phrases audio de manière asynchrone
-  const onSentenceReadyForAudio = useCallback((sentence: string) => {
-    if (!isMuted) {
-      console.log('🎵 Ajout à la file d\'attente audio:', sentence);
-      audioQueueRef.current.push(sentence);
-      
-      // Démarrer la lecture si aucun audio n'est en cours
-      if (!isAudioPlayingRef.current) {
-        processAudioQueue();
-      }
-    }
-  }, [isMuted]);
-
-  // Traiter la file d'attente audio
-  const processAudioQueue = useCallback(async () => {
-    if (isAudioPlayingRef.current || audioQueueRef.current.length === 0) {
-      // Si la file est vide et que la réponse IA est complète, libérer le micro
-      if (audioQueueRef.current.length === 0 && aiResponseCompleteRef.current) {
-        console.log('🎤 Tous les audios joués, libération du micro');
-        phoneCallService.setAISpeaking(false);
-        setIsAISpeaking(false);
-        
-        // Terminer l'appel si demandé
-        if (shouldEndCallAfterAudioRef.current) {
-          setTimeout(() => {
-            handleEndCall();
-          }, 500);
-        }
-      }
-      return;
-    }
-
-    isAudioPlayingRef.current = true;
-    const sentence = audioQueueRef.current.shift()!;
-    
-    try {
-      console.log('🔊 Lecture audio:', sentence);
-      await generateAndPlaySegmentAudio(sentence);
-    } catch (error) {
-      console.error('❌ Erreur lecture audio:', error);
-    } finally {
-      isAudioPlayingRef.current = false;
-      // Continuer avec le prochain segment
-      processAudioQueue();
-    }
-  }, []);
 
   // Timer de l'appel
   useEffect(() => {
@@ -154,10 +103,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     phoneCallService.setAISpeaking(true);
     setAiThinking(true);
     
-    // Réinitialiser la file d'attente audio
-    audioQueueRef.current = [];
-    isAudioPlayingRef.current = false;
-    aiResponseCompleteRef.current = false;
+    // Réinitialiser les états
     shouldEndCallAfterAudioRef.current = false;
 
     try {
@@ -172,21 +118,44 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       const aiResponse = await generateAIResponseFast(
         context,
         true, // isFirstMessage
-        (finalText) => {
+        async (finalText) => {
           // Callback quand le texte final est prêt
           console.log('✅ Texte IA final reçu:', finalText);
           setAiThinking(false);
           setPartialAIText('');
-          aiResponseCompleteRef.current = true;
-          // Déclencher le traitement de la file d'attente pour s'assurer que tous les audios sont joués
-          processAudioQueue();
+          
+          // Générer et jouer l'audio complet
+          if (!isMuted) {
+            try {
+              console.log('🎵 Génération audio pour la réponse complète...');
+              const audioBuffer = await generateOpenAIAudioSync(finalText);
+              console.log('🔊 Lecture de la réponse complète...');
+              await playOpenAIAudioDirectly(audioBuffer);
+              console.log('✅ Lecture audio terminée');
+            } catch (error) {
+              console.error('❌ Erreur audio:', error);
+              // Fallback vers synthèse vocale
+              const { playTextImmediately } = await import('../services/openai');
+              await playTextImmediately(finalText);
+            }
+          }
+          
+          // Libérer le micro après l'audio
+          phoneCallService.setAISpeaking(false);
+          setIsAISpeaking(false);
+          
+          // Terminer l'appel si demandé
+          if (shouldEndCallAfterAudioRef.current) {
+            setTimeout(() => {
+              handleEndCall();
+            }, 500);
+          }
         },
         (partialText) => {
           // Callback pour le texte partiel (feedback visuel)
           setPartialAIText(partialText);
           setAiThinking(false); // Désactiver "L'IA réfléchit" dès le premier texte
-        },
-        onSentenceReadyForAudio
+        }
       );
 
       // CRITIQUE: Ajouter à l'historique ET à la ref
@@ -202,17 +171,13 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       if (!isMuted) {
         phoneCallService.setAISpeaking(true);
         const { playTextImmediately } = await import('../services/openai');
-        playTextImmediately("Allô ?").then(() => {
-            phoneCallService.setAISpeaking(false);
-            setIsAISpeaking(false);
-          }).catch(() => {
-            phoneCallService.setAISpeaking(false);
-            setIsAISpeaking(false);
-          });
+        await playTextImmediately("Allô ?");
       } else {
         phoneCallService.setAISpeaking(false);
         setIsAISpeaking(false);
       }
+      phoneCallService.setAISpeaking(false);
+      setIsAISpeaking(false);
     }
   };
 
@@ -258,10 +223,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     setAiThinking(true);
     setPartialAIText('');
     
-    // Réinitialiser la file d'attente audio
-    audioQueueRef.current = [];
-    isAudioPlayingRef.current = false;
-    aiResponseCompleteRef.current = false;
+    // Réinitialiser les états
     shouldEndCallAfterAudioRef.current = false;
 
     try {
@@ -276,21 +238,44 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       const aiResponse = await generateAIResponseFast(
         contextForAI,
         false,
-        (finalText) => {
+        async (finalText) => {
           // Callback quand le texte final est prêt
           console.log('✅ Texte IA final reçu:', finalText);
           setAiThinking(false);
           setPartialAIText('');
-          aiResponseCompleteRef.current = true;
-          // Déclencher le traitement de la file d'attente pour s'assurer que tous les audios sont joués
-          processAudioQueue();
+          
+          // Générer et jouer l'audio complet
+          if (!isMuted) {
+            try {
+              console.log('🎵 Génération audio pour la réponse complète...');
+              const audioBuffer = await generateOpenAIAudioSync(finalText);
+              console.log('🔊 Lecture de la réponse complète...');
+              await playOpenAIAudioDirectly(audioBuffer);
+              console.log('✅ Lecture audio terminée');
+            } catch (error) {
+              console.error('❌ Erreur audio:', error);
+              // Fallback vers synthèse vocale
+              const { playTextImmediately } = await import('../services/openai');
+              await playTextImmediately(finalText);
+            }
+          }
+          
+          // Libérer le micro après l'audio
+          phoneCallService.setAISpeaking(false);
+          setIsAISpeaking(false);
+          
+          // Terminer l'appel si demandé
+          if (shouldEndCallAfterAudioRef.current) {
+            setTimeout(() => {
+              handleEndCall();
+            }, 500);
+          }
         },
         (partialText) => {
           // Callback pour le texte partiel (feedback visuel)
           setPartialAIText(partialText);
           setAiThinking(false); // Désactiver "L'IA réfléchit" dès le premier texte
-        },
-        onSentenceReadyForAudio
+        }
       );
       
 
@@ -321,17 +306,12 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       const fallbackMessage = "Pardon ?";
       if (!isMuted) {
         const { playTextImmediately } = await import('../services/openai');
-        playTextImmediately(fallbackMessage).then(() => {
-          phoneCallService.setAISpeaking(false);
-          setIsAISpeaking(false);
-        }).catch(() => {
-          phoneCallService.setAISpeaking(false);
-          setIsAISpeaking(false);
-        });
-      } else {
-        setIsAISpeaking(false);
-        phoneCallService.setAISpeaking(false);
+        await playTextImmediately(fallbackMessage);
       }
+      
+      // Libérer le micro
+      phoneCallService.setAISpeaking(false);
+      setIsAISpeaking(false);
       
       // Ajouter le message de fallback à l'historique
       const fallbackAIMessage = { role: 'assistant' as const, content: fallbackMessage };
@@ -355,10 +335,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     setCallState('ended');
     callStateRef.current = 'ended';
     
-    // Nettoyer la file d'attente audio
-    audioQueueRef.current = [];
-    isAudioPlayingRef.current = false;
-    aiResponseCompleteRef.current = false;
+    // Nettoyer les états audio
     shouldEndCallAfterAudioRef.current = false;
     
     phoneCallService.stopRecording();
@@ -369,11 +346,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     const finalDuration = startTime ? Math.floor((callEndTime.getTime() - startTime.getTime()) / 1000) : callDuration;
     setCallDuration(finalDuration);
 
-    // Arrêter tout audio en cours
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
+    // Arrêter toute synthèse vocale en cours
     window.speechSynthesis.cancel();
 
     // Analyser l'appel avec l'IA STRICTE

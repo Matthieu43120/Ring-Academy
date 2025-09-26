@@ -17,8 +17,7 @@ export async function generateAIResponseFast(
   context: ConversationContext,
   isFirstMessage: boolean = false,
   onTextReady?: (text: string) => void,
-  onPartialText?: (text: string) => void,
-  onSentenceReadyForAudio?: (sentence: string) => void
+  onPartialText?: (text: string) => void
 ): Promise<{ message: string; shouldEndCall: boolean }> {
   
   console.log('🚀 Démarrage streaming IA...');
@@ -108,7 +107,6 @@ IMPORTANT:
 async function processStreamingResponse(
   response: Response,
   onPartialText?: (text: string) => void,
-  onSentenceReadyForAudio?: (sentence: string) => void,
   onTextReady?: (text: string) => void
 ): Promise<string> {
   const reader = response.body?.getReader();
@@ -118,7 +116,6 @@ async function processStreamingResponse(
 
   const decoder = new TextDecoder();
   let accumulatedText = '';
-  let sentenceBuffer = '';
   let hasStartedProcessing = false;
 
   try {
@@ -162,33 +159,11 @@ async function processStreamingResponse(
               if (onPartialText) {
                 onPartialText(accumulatedText);
               }
-
-              // Détecter les phrases complètes
-              const completeSentences = extractCompleteSentences(sentenceBuffer);
-              
-              for (const sentence of completeSentences) {
-                console.log('🎵 Phrase complète détectée:', sentence);
-                
-                if (onSentenceReadyForAudio) {
-                  onSentenceReadyForAudio(sentence);
-                }
-                
-                // Retirer la phrase du buffer
-                sentenceBuffer = sentenceBuffer.replace(sentence, '').trim();
-              }
             }
           } catch (parseError) {
             console.warn('⚠️ Erreur parsing JSON:', parseError);
           }
         }
-      }
-    }
-
-    // Traiter le reste du buffer s'il y en a
-    if (sentenceBuffer.trim()) {
-      console.log('🎵 Phrase finale du buffer:', sentenceBuffer);
-      if (onSentenceReadyForAudio) {
-        onSentenceReadyForAudio(sentenceBuffer.trim());
       }
     }
 
@@ -206,25 +181,6 @@ async function processStreamingResponse(
   }
 }
 
-// Fonction pour extraire les phrases complètes
-function extractCompleteSentences(text: string): string[] {
-  const sentences: string[] = [];
-  
-  // Regex pour détecter les fins de phrases
-  const sentenceEndRegex = /[.!?]+\s+/g;
-  let lastIndex = 0;
-  let match;
-
-  while ((match = sentenceEndRegex.exec(text)) !== null) {
-    const sentence = text.slice(lastIndex, match.index + match[0].length).trim();
-    if (sentence.length > 5) {
-      sentences.push(sentence);
-      lastIndex = match.index + match[0].length;
-    }
-  }
-
-  return sentences;
-}
 
 // Fonction pour générer l'audio OpenAI de manière synchrone
 export async function generateOpenAIAudioSync(text: string): Promise<ArrayBuffer> {

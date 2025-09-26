@@ -60,13 +60,6 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
             details: decodeError.message
           }),
         };
-        // --- NOUVEAU LOG POUR DÉBOGAGE DE LA CONDITION ---
-        console.log(`DEBUG: Before if condition - stream: ${stream}, type: ${type}`);
-        console.log(`DEBUG: stream type: ${typeof stream}, type type: ${typeof type}`);
-        console.log(`DEBUG: stream === true: ${stream === true}, type === 'chatCompletion': ${type === 'chatCompletion'}`);
-        console.log(`DEBUG: Condition result: ${stream && type === 'chatCompletion'}`);
-        // --- FIN NOUVEAU LOG ---
-
       }
     }
 
@@ -121,14 +114,14 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     };
   }
 
-  const { type, payload, stream = false } = parsedBody;
+  const { type, payload, stream } = parsedBody;
+  
+  // Explicitly convert stream to boolean, handling potential string "true"
+  const isStreaming = typeof stream === 'string' ? stream === 'true' : Boolean(stream);
   
   // --- NOUVEAU LOG POUR DÉBOGAGE ---
-  console.log(`DEBUG: Parsed body - type: ${type}, stream: ${stream}`);
-  console.log(`DEBUG: Type of 'stream' variable: ${typeof stream}, Value of 'stream' variable: ${stream}`);
-  console.log(`DEBUG: stream === true: ${stream === true}`);
-  console.log(`DEBUG: type === 'chatCompletion': ${type === 'chatCompletion'}`);
-  console.log(`DEBUG: stream && type === 'chatCompletion': ${stream && type === 'chatCompletion'}`);
+  console.log(`DEBUG: Parsed body - type: ${type}, raw stream value: ${stream}, raw stream type: ${typeof stream}`);
+  console.log(`DEBUG: isStreaming (boolean): ${isStreaming}`);
   // --- FIN NOUVEAU LOG ---
 
   if (!process.env.OPENAI_API_KEY) {
@@ -141,8 +134,15 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
   }
 
   try {
+    // --- NOUVEAU LOG POUR DÉBOGAGE DE LA CONDITION ---
+    console.log(`DEBUG: Before if condition - isStreaming: ${isStreaming}, type: ${type}`);
+    console.log(`DEBUG: isStreaming === true: ${isStreaming === true}`);
+    console.log(`DEBUG: type === 'chatCompletion': ${type === 'chatCompletion'}`);
+    console.log(`DEBUG: isStreaming && type === 'chatCompletion': ${isStreaming && type === 'chatCompletion'}`);
+    // --- FIN NOUVEAU LOG ---
+
     // Si le streaming est demandé pour la complétion de chat
-    if (stream && type === 'chatCompletion') {
+    if (isStreaming && type === 'chatCompletion') {
       console.log('DEBUG: Entering streaming block');
       console.log('🚀 Démarrage de la complétion de chat en streaming...');
       

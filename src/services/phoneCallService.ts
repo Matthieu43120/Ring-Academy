@@ -27,7 +27,21 @@ export class PhoneCallService {
 
   private setupAudioContext() {
     try {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Vérifier si AudioContext existe et est dans un état utilisable
+      if (!this.audioContext || this.audioContext.state === 'closed') {
+        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        console.log('🔊 Nouveau AudioContext créé, état:', this.audioContext.state);
+      } else if (this.audioContext.state === 'suspended') {
+        // Reprendre le contexte suspendu
+        this.audioContext.resume().then(() => {
+          console.log('🔊 AudioContext repris, état:', this.audioContext?.state);
+        }).catch(error => {
+          console.warn('⚠️ Erreur lors de la reprise du AudioContext:', error);
+          // Créer un nouveau contexte en cas d'échec
+          this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        });
+      }
+      console.log('✅ AudioContext prêt, état:', this.audioContext.state);
     } catch (error) {
       console.warn('AudioContext non supporté:', error);
     }
@@ -343,6 +357,9 @@ export class PhoneCallService {
 
   // Démarrer l'enregistrement continu ULTRA-OPTIMISÉ
   async startContinuousRecording(onTranscription: (text: string) => void): Promise<void> {
+    // S'assurer que AudioContext est prêt
+    this.setupAudioContext();
+    
     this.onTranscriptionCallback = onTranscription;
 
     try {
@@ -505,6 +522,9 @@ export class PhoneCallService {
 
   // Jouer la sonnerie ULTRA-RAPIDE
   async playRingtone(): Promise<void> {
+    // S'assurer que AudioContext est prêt avant de jouer la sonnerie
+    this.setupAudioContext();
+    
     return new Promise((resolve) => {
       // Créer une sonnerie synthétique
       if (!this.audioContext) {

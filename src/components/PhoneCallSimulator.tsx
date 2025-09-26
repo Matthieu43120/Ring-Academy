@@ -491,11 +491,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
                 </div>
               )}
 
-              {partialAIText && callState === 'connected' && (
-                <div className="bg-red-900/50 border border-red-500 rounded-lg p-3 mt-4">
-                  <p className="text-red-300 text-sm">{error}</p>
-                </div>
-              )}
             </div>
           </div>
 

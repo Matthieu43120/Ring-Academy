@@ -124,37 +124,23 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
           setAiThinking(false); // Désactiver "L'IA réfléchit" dès le premier texte
         },
         (sentence) => {
-        // Callback quand une phrase est prête
+          // Callback quand une phrase est prête
           console.log('🎵 Phrase IA prête:', sentence);
+          if (!isMuted) { // Only play if not muted
+            return generateAndPlaySegmentAudio(sentence);
+          }
+          return Promise.resolve(); // Return a resolved promise if muted
         }
       );
 
       // CRITIQUE: Ajouter à l'historique ET à la ref
       const newHistory = [{ role: 'assistant' as const, content: aiResponse.message }];
-      setConversationContext(prev => ({
-        ...prev,
-        conversationHistory: newHistory
-      }));
+      setConversationContext(prev => ({ ...prev, conversationHistory: newHistory }));
       conversationHistoryRef.current = newHistory;
 
-      // Jouer l'audio avec la meilleure méthode disponible
-      if (!isMuted) {
-        const { playTextImmediately } = await import('../services/openai');
-        playTextImmediately(aiResponse.message).then(() => {
-          // CRITIQUE: Informer que l'IA a fini de parler
-          phoneCallService.setAISpeaking(false);
-          setIsAISpeaking(false);
-        }).catch((error) => {
-          console.error('❌ Erreur synthèse:', error);
-          phoneCallService.setAISpeaking(false);
-          setIsAISpeaking(false);
-        });
-      } else {
-        setTimeout(() => {
-          phoneCallService.setAISpeaking(false);
-          setIsAISpeaking(false);
-        }, 1000);
-      }
+      // CRITIQUE: Informer que l'IA a fini de parler après que tout l'audio ait été joué
+      phoneCallService.setAISpeaking(false);
+      setIsAISpeaking(false);
 
     } catch (error) {
       setAiThinking(false);

@@ -527,22 +527,27 @@ export class PhoneCallService {
     return new Promise((resolve) => {
       // Créer une sonnerie synthétique
       if (!this.audioContext) {
-        setTimeout(resolve, 1000); // RÉDUCTION: 1200ms → 1000ms
+        setTimeout(resolve, 3000); // Sonnerie plus longue pour 3 tonalités
         return;
       }
 
-      // Première sonnerie
+      // Première tonalité
       this.playRingTone();
       
-      // Deuxième sonnerie après 0.7s
+      // Deuxième tonalité après 1s
       setTimeout(() => {
         this.playRingTone();
-      }, 700); // RÉDUCTION: 800ms → 700ms
+      }, 1000);
+      
+      // Troisième tonalité après 2s
+      setTimeout(() => {
+        this.playRingTone();
+      }, 2000);
 
-      // Résoudre après les deux sonneries
+      // Résoudre après les trois tonalités
       setTimeout(() => {
         resolve();
-      }, 1200); // OPTIMISATION: 1500ms → 1200ms pour démarrage plus rapide
+      }, 3000); // Sonnerie complète de 3 secondes
     });
   }
 

@@ -84,8 +84,8 @@ export class PhoneCallService {
             try {
               // Vérifier que la reconnaissance n'est pas déjà active
               if (!this.recognition.recognizing) {
-              this.recognition.start();
-              console.log('🔄 Reconnaissance vocale redémarrée automatiquement');
+                this.recognition.start();
+                console.log('🔄 Reconnaissance vocale redémarrée automatiquement');
               } else {
                 console.log('ℹ️ Reconnaissance vocale déjà active, pas de redémarrage nécessaire');
               }
@@ -108,8 +108,8 @@ export class PhoneCallService {
             try {
               // Vérifier que la reconnaissance n'est pas déjà active
               if (!this.recognition.recognizing) {
-              this.recognition.start();
-              console.log('🔄 Reconnaissance vocale redémarrée après erreur');
+                this.recognition.start();
+                console.log('🔄 Reconnaissance vocale redémarrée après erreur');
               }
             } catch (error) {
               console.error('❌ Erreur redémarrage après erreur reconnaissance:', error.message);
@@ -412,6 +412,11 @@ export class PhoneCallService {
   private startSpeechRecognition() {
     if (!this.recognition) return;
 
+    // Vérifier si la reconnaissance est déjà active
+    if (this.recognition.recognizing) {
+      console.log('ℹ️ Reconnaissance vocale déjà active, pas de redémarrage');
+      return;
+    }
     this.isListening = true;
     this.isAISpeaking = false; // IMPORTANT: Reset de l'état IA
     this.resetTranscription();
@@ -419,8 +424,10 @@ export class PhoneCallService {
     this.isProcessingMessage = false;
     
     try {
+      console.log('🎤 Démarrage de la reconnaissance vocale continue');
       this.recognition.start();
     } catch (error) {
+      console.error('❌ Erreur démarrage reconnaissance vocale:', error.message);
       // Fallback vers l'ancienne méthode
       this.setupVoiceActivityDetection();
     }

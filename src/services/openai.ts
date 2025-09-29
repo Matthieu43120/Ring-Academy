@@ -21,6 +21,37 @@ export async function generateAIResponseFast(
   
   console.log('🚀 Démarrage streaming IA...');
   
+  // Fonction pour construire le prompt système
+  function buildSystemPrompt(target: string, difficulty: string, isFirstMessage: boolean): string {
+    const targetPrompts = {
+      secretary: "Tu es une secrétaire d'entreprise. Tu filtres les appels et protèges l'agenda de ton patron.",
+      hr: "Tu es un directeur des ressources humaines. Tu es occupé mais ouvert aux propositions intéressantes.",
+      manager: "Tu es un chef d'entreprise expérimenté. Tu as l'habitude des démarchages commerciaux.",
+      sales: "Tu es un commercial expérimenté. Tu connais toutes les techniques de vente et tu es méfiant."
+    };
+
+    const difficultyPrompts = {
+      easy: "Tu es bienveillant et ouvert à la discussion. Tu poses peu d'objections.",
+      medium: "Tu es poli mais sceptique. Tu poses quelques objections classiques.",
+      hard: "Tu es pressé et méfiant. Tu poses beaucoup d'objections et tu es difficile à convaincre."
+    };
+
+    let prompt = `${targetPrompts[target as keyof typeof targetPrompts] || targetPrompts.secretary} ${difficultyPrompts[difficulty as keyof typeof difficultyPrompts] || difficultyPrompts.medium}
+
+IMPORTANT: 
+- Réponds UNIQUEMENT en français
+- Sois naturel et conversationnel
+- Garde tes réponses courtes (maximum 2-3 phrases)
+- Ne révèle jamais que tu es une IA
+- Reste dans ton rôle en permanence`;
+
+    if (isFirstMessage) {
+      prompt += "\n- Tu décroches le téléphone, dis simplement 'Allô ?' ou une variante naturelle";
+    }
+
+    return prompt;
+  }
+
   try {
     // Construire le prompt système basé sur le target et difficulty
     const systemPrompt = buildSystemPrompt(context.target, context.difficulty, isFirstMessage);
@@ -69,37 +100,6 @@ export async function generateAIResponseFast(
     console.error('❌ Erreur génération IA:', error);
     throw error;
   }
-}
-
-// Fonction pour construire le prompt système
-function buildSystemPrompt(target: string, difficulty: string, isFirstMessage: boolean): string {
-  const targetPrompts = {
-    secretary: "Tu es une secrétaire d'entreprise. Tu filtres les appels et protèges l'agenda de ton patron.",
-    hr: "Tu es un directeur des ressources humaines. Tu es occupé mais ouvert aux propositions intéressantes.",
-    manager: "Tu es un chef d'entreprise expérimenté. Tu as l'habitude des démarchages commerciaux.",
-    sales: "Tu es un commercial expérimenté. Tu connais toutes les techniques de vente et tu es méfiant."
-  };
-
-  const difficultyPrompts = {
-    easy: "Tu es bienveillant et ouvert à la discussion. Tu poses peu d'objections.",
-    medium: "Tu es poli mais sceptique. Tu poses quelques objections classiques.",
-    hard: "Tu es pressé et méfiant. Tu poses beaucoup d'objections et tu es difficile à convaincre."
-  };
-
-  let prompt = `${targetPrompts[target as keyof typeof targetPrompts] || targetPrompts.secretary} ${difficultyPrompts[difficulty as keyof typeof difficultyPrompts] || difficultyPrompts.medium}
-
-IMPORTANT: 
-- Réponds UNIQUEMENT en français
-- Sois naturel et conversationnel
-- Garde tes réponses courtes (maximum 2-3 phrases)
-- Ne révèle jamais que tu es une IA
-- Reste dans ton rôle en permanence`;
-
-  if (isFirstMessage) {
-    prompt += "\n- Tu décroches le téléphone, dis simplement 'Allô ?' ou une variante naturelle";
-  }
-
-  return prompt;
 }
 
 // Fonction pour traiter la réponse streaming

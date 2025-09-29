@@ -1,4 +1,5 @@
 // Configuration de l'API OpenAI
+// Dernière mise à jour: correction du paramètre isFirstMessage
 const OPENAI_PROXY_URL = '/.netlify/functions/openai-proxy';
 const OPENAI_AUDIO_URL = '/.netlify/functions/openai-audio';
 

@@ -194,7 +194,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
           setPartialAIText('');
           aiResponseCompleteRef.current = true;
           // Déclencher le traitement de la file d'attente pour s'assurer que tous les audios sont joués
-          processAudioPlaybackQueue();
+          processAudioQueue();
         },
         (partialText) => {
           // Callback pour le texte partiel (feedback visuel)
@@ -274,7 +274,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     setPartialAIText('');
     
     // Réinitialiser la file d'attente audio
-    audioBufferPromisesQueueRef.current = [];
+    audioQueueRef.current = [];
     isAudioPlayingRef.current = false;
     aiResponseCompleteRef.current = false;
     shouldEndCallAfterAudioRef.current = false;
@@ -298,7 +298,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
           setPartialAIText('');
           aiResponseCompleteRef.current = true;
           // Déclencher le traitement de la file d'attente pour s'assurer que tous les audios sont joués
-          processAudioPlaybackQueue();
+          processAudioQueue();
         },
         (partialText) => {
           // Callback pour le texte partiel (feedback visuel)
@@ -320,7 +320,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       conversationHistoryRef.current = updatedHistory;
       
       setPartialAIText('');
-      processingResponseRef.current = false;
 
       // Terminer l'appel si demandé par l'IA
       if (aiResponse.shouldEndCall) {
@@ -339,13 +338,16 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
         playTextImmediately(fallbackMessage).then(() => {
           phoneCallService.setAISpeaking(false);
           setIsAISpeaking(false);
+          processingResponseRef.current = false;
         }).catch(() => {
           phoneCallService.setAISpeaking(false);
           setIsAISpeaking(false);
+          processingResponseRef.current = false;
         });
       } else {
         setIsAISpeaking(false);
         phoneCallService.setAISpeaking(false);
+        processingResponseRef.current = false;
       }
       
       // Ajouter le message de fallback à l'historique

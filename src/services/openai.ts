@@ -402,19 +402,36 @@ export async function analyzeCall(
     const result = await response.json();
     const analysisText = result.choices?.[0]?.message?.content || '';
     
+    // Nettoyer la réponse pour supprimer les marqueurs Markdown
+    let cleanedAnalysisText = analysisText.trim();
+    
+    // Supprimer les blocs de code Markdown (```json ... ```)
+    if (cleanedAnalysisText.startsWith('```json')) {
+      cleanedAnalysisText = cleanedAnalysisText.replace(/^```json\s*/, '');
+    }
+    if (cleanedAnalysisText.startsWith('```')) {
+      cleanedAnalysisText = cleanedAnalysisText.replace(/^```\s*/, '');
+    }
+    if (cleanedAnalysisText.endsWith('```')) {
+      cleanedAnalysisText = cleanedAnalysisText.replace(/\s*```$/, '');
+    }
+    
+    console.log('📝 Texte d\'analyse nettoyé:', cleanedAnalysisText.substring(0, 200) + '...');
+    
     // Parser la réponse JSON
     try {
-      const analysis = JSON.parse(analysisText);
+      const analysis = JSON.parse(cleanedAnalysisText);
       console.log('✅ Analyse terminée:', analysis);
       return analysis;
     } catch (parseError) {
-      console.warn('⚠️ Erreur parsing analyse, utilisation fallback');
+      console.warn('⚠️ Erreur parsing analyse, utilisation fallback:', parseError);
+      console.warn('📝 Texte problématique:', cleanedAnalysisText);
       // Fallback si le parsing JSON échoue
       return {
         score: 75,
         strengths: ['Bonne approche générale'],
         recommendations: ['Continuer à pratiquer'],
-        detailedFeedback: analysisText || 'Analyse non disponible',
+        detailedFeedback: cleanedAnalysisText || 'Analyse non disponible',
         improvements: ['Améliorer la gestion des objections']
       };
     }

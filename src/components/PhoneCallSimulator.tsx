@@ -322,7 +322,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       if (aiResponse.shouldEndCall) {
         shouldEndCallAfterAudioRef.current = true;
       }
-        }
 
     } catch (error) {
       console.error('❌ Erreur handleAIResponse:', error);

@@ -107,8 +107,7 @@ IMPORTANT:
 async function processStreamingResponse(
   response: Response,
   onPartialText?: (text: string) => void,
-  onTextReady?: (text: string) => void,
-  onSentenceReadyForAudio?: (text: string) => void
+  onTextReady?: (text: string) => void
 ): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) {

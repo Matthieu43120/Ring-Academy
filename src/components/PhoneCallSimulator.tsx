@@ -123,7 +123,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       console.log('✅ Première réponse IA générée:', aiResponse.message);
       
       // Préparer l'audio en parallèle
-      const audioBuffer = await getAudioBufferForSentence(aiResponse.message);
+      const audioBuffer = await getAudioBufferForSentence(aiResponse.message, getContactInfo().voice);
       
       return {
         message: aiResponse.message,
@@ -267,7 +267,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
             if (!isMuted && callStateRef.current === 'connected') {
               try {
                 console.log('🎵 Génération et lecture audio complète...');
-                const audioBuffer = await getAudioBufferForSentence(finalText);
+                const audioBuffer = await getAudioBufferForSentence(finalText, contact.voice);
                 await playAudioBuffer(audioBuffer);
                 console.log('✅ Audio terminé, libération du micro');
                 
@@ -456,28 +456,32 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
         title: 'Secrétaire', 
         company: 'Entreprise ABC',
         avatar: '👩‍💼',
-        color: 'from-blue-500 to-blue-600' 
+        color: 'from-blue-500 to-blue-600',
+        voice: 'nova'
       },
       hr: { 
         name: 'Pierre Martin', 
         title: 'Directeur RH', 
         company: 'Groupe XYZ',
         avatar: '👨‍💼',
-        color: 'from-purple-500 to-purple-600' 
+        color: 'from-purple-500 to-purple-600',
+        voice: 'onyx'
       },
       manager: { 
         name: 'Sophie Laurent', 
         title: 'Directrice', 
         company: 'Innovation Corp',
         avatar: '👩‍💼',
-        color: 'from-primary-500 to-primary-600' 
+        color: 'from-primary-500 to-primary-600',
+        voice: 'shimmer'
       },
       sales: { 
         name: 'Thomas Durand', 
         title: 'Commercial', 
         company: 'Vente Pro',
         avatar: '👨‍💼',
-        color: 'from-accent-500 to-accent-600' 
+        color: 'from-accent-500 to-accent-600',
+        voice: 'echo'
       }
     };
     return contactMap[config.target as keyof typeof contactMap] || contactMap.secretary;

@@ -183,7 +183,7 @@ async function processStreamingResponse(
 }
 
 // Fonction pour générer l'AudioBuffer d'une phrase (sans la jouer)
-export async function getAudioBufferForSentence(text: string): Promise<AudioBuffer> {
+export async function getAudioBufferForSentence(text: string, voice: string = 'nova'): Promise<AudioBuffer> {
   console.log('🎵 Génération AudioBuffer pour:', text.substring(0, 30) + '...');
   
   try {
@@ -196,7 +196,7 @@ export async function getAudioBufferForSentence(text: string): Promise<AudioBuff
         type: 'speech',
         payload: {
           input: text,
-          voice: 'nova',
+          voice: voice,
           model: 'tts-1'
         }
       }),
@@ -262,10 +262,10 @@ export async function playAudioBuffer(audioBuffer: AudioBuffer): Promise<void> {
 
 
 // Fonction pour générer et jouer un segment audio (conservée pour compatibilité)
-export async function generateAndPlaySegmentAudio(text: string): Promise<void> {
+export async function generateAndPlaySegmentAudio(text: string, voice: string = 'nova'): Promise<void> {
   try {
     console.log('🎵 Génération et lecture pour:', text.substring(0, 30) + '...');
-    const audioBuffer = await getAudioBufferForSentence(text);
+    const audioBuffer = await getAudioBufferForSentence(text, voice);
     await playAudioBuffer(audioBuffer);
   } catch (error) {
     console.error('❌ Erreur génération/lecture segment:', error);

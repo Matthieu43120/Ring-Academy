@@ -24,6 +24,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   
   const aiResponseCompleteRef = useRef(false);
   const shouldEndCallAfterAudioRef = useRef(false);
+  const startTimeRef = useRef<Date | null>(null);
   
   const [conversationContext, setConversationContext] = useState<ConversationContext>({
     target: config.target,
@@ -83,7 +84,9 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       // L'IA décroche
       setCallState('connected');
       callStateRef.current = 'connected';
-      setStartTime(new Date());
+      const connectionTime = new Date();
+      setStartTime(connectionTime);
+      startTimeRef.current = connectionTime;
       
       // Attendre que la première réponse IA soit prête et la jouer immédiatement
       await playFirstAIResponse(aiResponsePromise);
@@ -373,8 +376,20 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     setIsAISpeaking(false);
     processingResponseRef.current = false;
 
-    // Calculer la durée finale précise
-    const finalDuration = startTime ? Math.floor((callEndTime.getTime() - startTime.getTime()) / 1000) : callDuration;
+    // Calculer la durée finale précise en utilisant la ref
+    let finalDuration = 0;
+    if (startTimeRef.current) {
+      const durationMs = callEndTime.getTime() - startTimeRef.current.getTime();
+      finalDuration = Math.floor(durationMs / 1000);
+      // S'assurer qu'un appel connecté affiche au moins 1 seconde
+      if (finalDuration === 0 && durationMs > 0) {
+        finalDuration = 1;
+      }
+    } else {
+      // Fallback vers la durée du timer si pas de startTime
+      finalDuration = callDuration;
+    }
+    
     setCallDuration(finalDuration);
 
     // Arrêter tout audio en cours

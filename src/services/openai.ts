@@ -35,7 +35,7 @@ export async function generateAIResponseFast(
     
     // Préparer la payload pour la fonction Netlify
     const payload = {
-      model: 'gpt-4o-mini',
+      model: 'gpt-4-turbo',
       messages: messages,
       temperature: 0.8,
       max_tokens: 200,
@@ -477,7 +477,7 @@ export async function analyzeCall(
 
     // Préparer la payload pour la fonction Netlify
     const payload = {
-      model: 'gpt-4o-mini',
+      model: 'gpt-4-turbo',
       messages: analysisMessages,
       temperature: 0.3,
       max_tokens: 1000

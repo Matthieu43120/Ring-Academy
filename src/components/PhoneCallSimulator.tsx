@@ -194,7 +194,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
           setPartialAIText('');
           aiResponseCompleteRef.current = true;
           // Déclencher le traitement de la file d'attente pour s'assurer que tous les audios sont joués
-          processAudioQueue();
+          processAudioPlaybackQueue();
         },
         (partialText) => {
           // Callback pour le texte partiel (feedback visuel)
@@ -274,7 +274,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     setPartialAIText('');
     
     // Réinitialiser la file d'attente audio
-    audioQueueRef.current = [];
+    audioBufferPromisesQueueRef.current = [];
     isAudioPlayingRef.current = false;
     aiResponseCompleteRef.current = false;
     shouldEndCallAfterAudioRef.current = false;
@@ -298,7 +298,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
           setPartialAIText('');
           aiResponseCompleteRef.current = true;
           // Déclencher le traitement de la file d'attente pour s'assurer que tous les audios sont joués
-          processAudioQueue();
+          processAudioPlaybackQueue();
         },
         (partialText) => {
           // Callback pour le texte partiel (feedback visuel)

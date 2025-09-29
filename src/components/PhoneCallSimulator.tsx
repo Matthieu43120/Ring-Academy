@@ -369,7 +369,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     callStateRef.current = 'ended';
     
     // Nettoyer la file d'attente audio
-    audioQueueRef.current = [];
+    audioBufferPromisesQueueRef.current = [];
     isAudioPlayingRef.current = false;
     aiResponseCompleteRef.current = false;
     shouldEndCallAfterAudioRef.current = false;

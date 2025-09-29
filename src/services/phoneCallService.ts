@@ -87,25 +87,33 @@ export class PhoneCallService {
           if (this.isListening && !this.isAISpeaking) {
             try {
               this.recognition.start();
+              console.log('🔄 Reconnaissance vocale redémarrée automatiquement');
             } catch (error) {
+              console.error('❌ Erreur redémarrage automatique reconnaissance vocale:', error);
             }
           }
         }, 100);
       } else {
+        console.log('ℹ️ Reconnaissance vocale arrêtée (isListening:', this.isListening, 'isAISpeaking:', this.isAISpeaking, ')');
       }
     };
 
     this.recognition.onerror = (event: any) => {
       // CORRECTION: Redémarrer même en cas d'erreur pour maintenir la conversation
       if (event.error === 'no-speech' || event.error === 'audio-capture') {
+        console.log('⚠️ Erreur reconnaissance vocale:', event.error, '- Redémarrage...');
         setTimeout(() => {
           if (this.isListening && !this.isAISpeaking) {
             try {
               this.recognition.start();
+              console.log('🔄 Reconnaissance vocale redémarrée après erreur');
             } catch (error) {
+              console.error('❌ Erreur redémarrage après erreur reconnaissance:', error);
             }
           }
         }, 500);
+      } else {
+        console.error('❌ Erreur reconnaissance vocale non gérée:', event.error);
       }
     };
 
@@ -283,10 +291,9 @@ export class PhoneCallService {
     
     this.onTranscriptionCallback(cleanText);
 
-    // Libérer après un délai pour permettre le traitement
-    setTimeout(() => {
-      this.isProcessingMessage = false;
-    }, 2000); // OPTIMISATION: 3s → 2s
+    // CORRECTION CRITIQUE: Libérer immédiatement après l'envoi
+    // Les mécanismes lastSentMessage et lastSentenceTime suffisent pour éviter les doublons
+    this.isProcessingMessage = false;
   }
 
   // NOUVEAU: Réinitialiser la transcription
@@ -312,6 +319,27 @@ export class PhoneCallService {
     } else {
       // Quand l'IA arrête de parler, permettre à nouveau la transcription
       console.log('🎤 Utilisateur peut maintenant parler');
+      
+      // CORRECTION CRITIQUE: Redémarrer explicitement la reconnaissance vocale si nécessaire
+      if (this.recognition && this.isListening) {
+        // Vérifier si la reconnaissance est active
+        setTimeout(() => {
+          if (this.isListening && !this.isAISpeaking) {
+            try {
+              // Forcer le redémarrage de la reconnaissance vocale
+              this.recognition.stop();
+              setTimeout(() => {
+                if (this.isListening && !this.isAISpeaking) {
+                  this.recognition.start();
+                  console.log('🔄 Reconnaissance vocale redémarrée après IA');
+                }
+              }, 100);
+            } catch (error) {
+              console.error('❌ Erreur redémarrage reconnaissance vocale:', error);
+            }
+          }
+        }, 200);
+      }
     }
   }
 

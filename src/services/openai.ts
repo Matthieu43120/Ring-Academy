@@ -35,7 +35,7 @@ export async function generateAIResponseFast(
     
     // Préparer la payload pour la fonction Netlify
     const payload = {
-      model: 'gpt-4-turbo',
+      model: 'gpt-4o-mini',
       messages: messages,
       temperature: 0.8,
       max_tokens: 200,
@@ -226,9 +226,9 @@ function extractCompleteSentences(text: string): string[] {
   return sentences;
 }
 
-// Fonction pour streamer et jouer l'audio OpenAI en temps réel
+// Fonction pour générer et jouer l'audio OpenAI
 export async function streamOpenAIAudio(text: string): Promise<void> {
-  console.log('🎵 Streaming audio temps réel pour:', text.substring(0, 50) + '...');
+  console.log('🎵 Génération audio OpenAI pour:', text.substring(0, 50) + '...');
   
   try {
     const response = await fetch(OPENAI_AUDIO_URL, {
@@ -250,118 +250,43 @@ export async function streamOpenAIAudio(text: string): Promise<void> {
       throw new Error(`Erreur génération audio: ${response.status}`);
     }
 
-    if (!response.body) {
-      throw new Error('Pas de flux audio reçu');
+    const result = await response.json();
+    
+    if (!result.audioBase64) {
+      throw new Error('Pas de données audio reçues');
     }
 
-    console.log('🔊 Début streaming audio temps réel');
+    console.log('🔊 Décodage et lecture audio OpenAI');
     
-    // Créer un AudioContext pour la lecture en temps réel
+    // Décoder le Base64 en ArrayBuffer
+    const audioData = Uint8Array.from(atob(result.audioBase64), c => c.charCodeAt(0));
+    
+    // Créer un AudioContext pour la lecture
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     
-    // Utiliser l'API MediaSource pour le streaming audio
-    await playStreamingAudio(response.body, audioContext);
+    // Décoder et jouer l'audio
+    const audioBuffer = await audioContext.decodeAudioData(audioData.buffer);
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(audioContext.destination);
+    
+    // Retourner une promesse qui se résout quand l'audio est terminé
+    return new Promise((resolve) => {
+      source.onended = () => {
+        console.log('🔊 Lecture audio OpenAI terminée');
+        resolve();
+      };
+      
+      source.start(0);
+      console.log('🔊 Début lecture audio OpenAI');
+    });
     
   } catch (error) {
-    console.error('❌ Erreur streaming audio:', error);
+    console.error('❌ Erreur génération/lecture audio OpenAI:', error);
     throw error;
   }
 }
 
-// Fonction pour jouer un flux audio en temps réel
-async function playStreamingAudio(stream: ReadableStream<Uint8Array>, audioContext: AudioContext): Promise<void> {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const reader = stream.getReader();
-      const chunks: Uint8Array[] = [];
-      let totalLength = 0;
-      let isPlaying = false;
-      
-      // Lire le flux par chunks
-      const readChunk = async () => {
-        try {
-          const { done, value } = await reader.read();
-          
-          if (done) {
-            console.log('🔊 Fin du flux audio');
-            // Jouer les derniers chunks s'il en reste
-            if (chunks.length > 0 && !isPlaying) {
-              await playAccumulatedChunks();
-            }
-            resolve();
-            return;
-          }
-          
-          if (value) {
-            chunks.push(value);
-            totalLength += value.length;
-            
-            // Commencer la lecture dès qu'on a assez de données (environ 8KB)
-            if (!isPlaying && totalLength > 8192) {
-              isPlaying = true;
-              await playAccumulatedChunks();
-            }
-          }
-          
-          // Continuer à lire
-          readChunk();
-        } catch (error) {
-          console.error('❌ Erreur lecture chunk:', error);
-          reject(error);
-        }
-      };
-      
-      // Fonction pour jouer les chunks accumulés
-      const playAccumulatedChunks = async () => {
-        if (chunks.length === 0) return;
-        
-        try {
-          // Combiner tous les chunks en un seul ArrayBuffer
-          const combinedBuffer = new ArrayBuffer(totalLength);
-          const combinedView = new Uint8Array(combinedBuffer);
-          let offset = 0;
-          
-          for (const chunk of chunks) {
-            combinedView.set(chunk, offset);
-            offset += chunk.length;
-          }
-          
-          // Décoder et jouer l'audio
-          const audioBuffer = await audioContext.decodeAudioData(combinedBuffer);
-          const source = audioContext.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioContext.destination);
-          
-          source.onended = () => {
-            console.log('🔊 Lecture chunk terminée');
-          };
-          
-          source.start(0);
-          console.log('🔊 Lecture chunk démarrée');
-          
-          // Réinitialiser pour le prochain batch
-          chunks.length = 0;
-          totalLength = 0;
-          isPlaying = false;
-          
-        } catch (error) {
-          console.error('❌ Erreur lecture chunk audio:', error);
-          // Continuer malgré l'erreur
-          chunks.length = 0;
-          totalLength = 0;
-          isPlaying = false;
-        }
-      };
-      
-      // Démarrer la lecture du flux
-      readChunk();
-      
-    } catch (error) {
-      console.error('❌ Erreur setup streaming audio:', error);
-      reject(error);
-    }
-  });
-}
 
 // Fonction pour générer et jouer un segment audio
 export async function generateAndPlaySegmentAudio(text: string): Promise<void> {
@@ -477,7 +402,7 @@ export async function analyzeCall(
 
     // Préparer la payload pour la fonction Netlify
     const payload = {
-      model: 'gpt-4-turbo',
+      model: 'gpt-4o-mini',
       messages: analysisMessages,
       temperature: 0.3,
       max_tokens: 1000

@@ -24,7 +24,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   
   const aiResponseCompleteRef = useRef(false);
   const shouldEndCallAfterAudioRef = useRef(false);
-  const startTimeRef = useRef<Date | null>(null);
   
   const [conversationContext, setConversationContext] = useState<ConversationContext>({
     target: config.target,
@@ -84,9 +83,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       // L'IA décroche
       setCallState('connected');
       callStateRef.current = 'connected';
-      const connectionTime = new Date();
-      setStartTime(connectionTime);
-      startTimeRef.current = connectionTime;
+      setStartTime(new Date());
       
       // Attendre que la première réponse IA soit prête et la jouer immédiatement
       await playFirstAIResponse(aiResponsePromise);
@@ -325,6 +322,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       if (aiResponse.shouldEndCall) {
         shouldEndCallAfterAudioRef.current = true;
       }
+        }
 
     } catch (error) {
       console.error('❌ Erreur handleAIResponse:', error);
@@ -376,20 +374,8 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     setIsAISpeaking(false);
     processingResponseRef.current = false;
 
-    // Calculer la durée finale précise en utilisant la ref
-    let finalDuration = 0;
-    if (startTimeRef.current) {
-      const durationMs = callEndTime.getTime() - startTimeRef.current.getTime();
-      finalDuration = Math.floor(durationMs / 1000);
-      // S'assurer qu'un appel connecté affiche au moins 1 seconde
-      if (finalDuration === 0 && durationMs > 0) {
-        finalDuration = 1;
-      }
-    } else {
-      // Fallback vers la durée du timer si pas de startTime
-      finalDuration = callDuration;
-    }
-    
+    // Calculer la durée finale précise
+    const finalDuration = startTime ? Math.floor((callEndTime.getTime() - startTime.getTime()) / 1000) : callDuration;
     setCallDuration(finalDuration);
 
     // Arrêter tout audio en cours
@@ -522,7 +508,9 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
       <div className="w-full max-w-sm mx-auto">
         {/* Interface d'appel téléphonique */}
-        <div className="bg-gray-900 rounded-3xl shadow-2xl border border-gray-700 overflow-hidden">
+        <div className
+  )
+}="bg-gray-900 rounded-3xl shadow-2xl border border-gray-700 overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-gray-800 to-gray-700 px-6 py-4 text-center">
             <div className={`text-sm font-medium ${getCallStateColor()}`}>

@@ -86,6 +86,9 @@ function TrainingForm({ onStartTraining, hasMicrophonePermission }: TrainingForm
       if (!hasSeenInstructions) {
         setShowInstructions(true);
       } else {
+        // Faire remonter la page en haut
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
         onStartTraining({ target, difficulty });
       }
     }
@@ -96,6 +99,10 @@ function TrainingForm({ onStartTraining, hasMicrophonePermission }: TrainingForm
       localStorage.setItem('ring_academy_seen_instructions', 'true');
     }
     setShowInstructions(false);
+    
+    // Faire remonter la page en haut
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
     onStartTraining({ target, difficulty });
   };
 

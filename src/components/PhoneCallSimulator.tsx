@@ -507,9 +507,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
       <div className="w-full max-w-sm mx-auto">
         {/* Interface d'appel téléphonique */}
-        <div className
-  )
-}="bg-gray-900 rounded-3xl shadow-2xl border border-gray-700 overflow-hidden">
+        <div className="bg-gray-900 rounded-3xl shadow-2xl border border-gray-700 overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-gray-800 to-gray-700 px-6 py-4 text-center">
             <div className={`text-sm font-medium ${getCallStateColor()}`}>

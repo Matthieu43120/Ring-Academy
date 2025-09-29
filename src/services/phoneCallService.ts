@@ -304,11 +304,12 @@ export class PhoneCallService {
         console.log('📤 Envoi de la transcription accumulée:', this.finalTranscript.trim());
         this.sendTranscriptionToAI(this.finalTranscript.trim());
         this.resetTranscription();
+      }
     }
   }
 
   // NOUVEAU: Méthode centralisée pour redémarrer la reconnaissance vocale en toute sécurité
-  private restartRecognitionSafely(source: string, delay: number = 100) {
+  private restartRecognitionSafely(source: string, delay: number = 100): void {
     setTimeout(() => {
       if (this.isListening && !this.isAISpeaking && this.recognition) {
         try {

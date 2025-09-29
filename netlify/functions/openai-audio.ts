@@ -27,6 +27,8 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
   try {
     const { type, payload } = JSON.parse(event.body || "{}");
 
+    console.log('📥 Fonction openai-audio - Type:', type, 'Payload reçu:', payload);
+
     if (!process.env.OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY not configured');
       return {
@@ -37,6 +39,8 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     }
 
     if (type === 'speech') {
+      console.log('🎵 Génération TTS OpenAI avec payload:', payload);
+      
       // Générer l'audio avec l'API OpenAI TTS
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
         method: 'POST',

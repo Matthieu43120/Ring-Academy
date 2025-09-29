@@ -184,9 +184,18 @@ async function processStreamingResponse(
 
 // Fonction pour générer l'AudioBuffer d'une phrase (sans la jouer)
 export async function getAudioBufferForSentence(text: string, voice: string = 'nova'): Promise<AudioBuffer> {
+  console.log('🎵 Génération AudioBuffer - Texte:', text.substring(0, 30) + '...', 'Voix demandée:', voice);
   console.log('🎵 Génération AudioBuffer pour:', text.substring(0, 30) + '...');
   
   try {
+    const payload = {
+      input: text,
+      voice: voice,
+      model: 'tts-1'
+    };
+    
+    console.log('📤 Payload envoyé à openai-audio:', payload);
+    
     const response = await fetch(OPENAI_AUDIO_URL, {
       method: 'POST',
       headers: {
@@ -194,11 +203,7 @@ export async function getAudioBufferForSentence(text: string, voice: string = 'n
       },
       body: JSON.stringify({
         type: 'speech',
-        payload: {
-          input: text,
-          voice: voice,
-          model: 'tts-1'
-        }
+        payload: payload
       }),
     });
 
@@ -264,7 +269,7 @@ export async function playAudioBuffer(audioBuffer: AudioBuffer): Promise<void> {
 // Fonction pour générer et jouer un segment audio (conservée pour compatibilité)
 export async function generateAndPlaySegmentAudio(text: string, voice: string = 'nova'): Promise<void> {
   try {
-    console.log('🎵 Génération et lecture pour:', text.substring(0, 30) + '...');
+    console.log('🎵 Génération et lecture - Texte:', text.substring(0, 30) + '...', 'Voix demandée:', voice);
     const audioBuffer = await getAudioBufferForSentence(text, voice);
     await playAudioBuffer(audioBuffer);
   } catch (error) {

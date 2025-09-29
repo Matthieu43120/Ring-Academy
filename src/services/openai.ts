@@ -226,9 +226,9 @@ function extractCompleteSentences(text: string): string[] {
   return sentences;
 }
 
-// Fonction pour générer et jouer l'audio OpenAI
-export async function streamOpenAIAudio(text: string): Promise<void> {
-  console.log('🎵 Génération audio OpenAI pour:', text.substring(0, 50) + '...');
+// Fonction pour générer l'AudioBuffer d'une phrase (sans la jouer)
+export async function getAudioBufferForSentence(text: string): Promise<AudioBuffer> {
+  console.log('🎵 Génération AudioBuffer pour:', text.substring(0, 30) + '...');
   
   try {
     const response = await fetch(OPENAI_AUDIO_URL, {
@@ -256,43 +256,61 @@ export async function streamOpenAIAudio(text: string): Promise<void> {
       throw new Error('Pas de données audio reçues');
     }
 
-    console.log('🔊 Décodage et lecture audio OpenAI');
-    
     // Décoder le Base64 en ArrayBuffer
     const audioData = Uint8Array.from(atob(result.audioBase64), c => c.charCodeAt(0));
     
-    // Créer un AudioContext pour la lecture
+    // Créer un AudioContext pour décoder
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     
-    // Décoder et jouer l'audio
+    // Décoder l'audio en AudioBuffer
     const audioBuffer = await audioContext.decodeAudioData(audioData.buffer);
-    const source = audioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(audioContext.destination);
     
-    // Retourner une promesse qui se résout quand l'audio est terminé
-    return new Promise((resolve) => {
-      source.onended = () => {
-        console.log('🔊 Lecture audio OpenAI terminée');
-        resolve();
-      };
-      
-      source.start(0);
-      console.log('🔊 Début lecture audio OpenAI');
-    });
+    console.log('✅ AudioBuffer généré avec succès');
+    return audioBuffer;
     
   } catch (error) {
-    console.error('❌ Erreur génération/lecture audio OpenAI:', error);
+    console.error('❌ Erreur génération AudioBuffer:', error);
     throw error;
   }
 }
 
+// Fonction pour jouer un AudioBuffer
+export async function playAudioBuffer(audioBuffer: AudioBuffer): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      console.log('🔊 Début lecture AudioBuffer');
+      
+      // Créer un AudioContext pour la lecture
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Créer une source audio
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+      
+      // Gérer la fin de lecture
+      source.onended = () => {
+        console.log('🔊 Lecture AudioBuffer terminée');
+        resolve();
+      };
+      
+      // Démarrer la lecture
+      source.start(0);
+      
+    } catch (error) {
+      console.error('❌ Erreur lecture AudioBuffer:', error);
+      reject(error);
+    }
+  });
+}
 
-// Fonction pour générer et jouer un segment audio
+
+// Fonction pour générer et jouer un segment audio (conservée pour compatibilité)
 export async function generateAndPlaySegmentAudio(text: string): Promise<void> {
   try {
     console.log('🎵 Génération et lecture pour:', text.substring(0, 30) + '...');
-    await streamOpenAIAudio(text);
+    const audioBuffer = await getAudioBufferForSentence(text);
+    await playAudioBuffer(audioBuffer);
   } catch (error) {
     console.error('❌ Erreur génération/lecture segment:', error);
     // Fallback vers la synthèse vocale du navigateur

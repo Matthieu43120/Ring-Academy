@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Phone, PhoneOff, Volume2, VolumeX } from 'lucide-react';
 import { TrainingConfig, SessionResult } from '../pages/Training';
-import { generateAIResponseFast, analyzeCall, ConversationContext, generateAndPlaySegmentAudio } from '../services/openai';
+import { generateAIResponseFast, analyzeCall, ConversationContext, getAudioBufferForSentence, playAudioBuffer } from '../services/openai';
 import { phoneCallService } from '../services/phoneCallService';
 
 interface PhoneCallSimulatorProps {
@@ -22,8 +22,8 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   const [aiThinking, setAiThinking] = useState(false);
   const [partialAIText, setPartialAIText] = useState('');
   
-  // File d'attente audio pour des réponses fluides
-  const audioQueueRef = useRef<string[]>([]);
+  // File d'attente audio pour des réponses fluides avec pipelining
+  const audioBufferPromisesQueueRef = useRef<Promise<AudioBuffer>[]>([]);
   const isAudioPlayingRef = useRef(false);
   const aiResponseCompleteRef = useRef(false);
   const shouldEndCallAfterAudioRef = useRef(false);
@@ -53,24 +53,32 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   }, [conversationContext.conversationHistory]);
 
   // Callback pour traiter les phrases audio de manière asynchrone
-  const onSentenceReadyForAudio = useCallback((sentence: string) => {
+  const onSentenceReadyForAudio = useCallback(async (sentence: string) => {
     if (!isMuted) {
-      console.log('🎵 Ajout à la file d\'attente audio:', sentence);
-      audioQueueRef.current.push(sentence);
+      console.log('🎵 Génération audio en arrière-plan pour:', sentence.substring(0, 30) + '...');
+      
+      // Générer l'audio en arrière-plan et l'ajouter à la file d'attente
+      const audioBufferPromise = getAudioBufferForSentence(sentence).catch(error => {
+        console.error('❌ Erreur génération audio pour phrase:', error);
+        // Retourner null en cas d'erreur pour que la file continue
+        return null;
+      });
+      
+      audioBufferPromisesQueueRef.current.push(audioBufferPromise);
       
       // Démarrer la lecture si aucun audio n'est en cours
       if (!isAudioPlayingRef.current) {
-        processAudioQueue();
+        processAudioPlaybackQueue();
       }
     }
   }, [isMuted]);
 
   // Traiter la file d'attente audio
-  const processAudioQueue = useCallback(async () => {
-    if (isAudioPlayingRef.current || audioQueueRef.current.length === 0) {
+  const processAudioPlaybackQueue = useCallback(async () => {
+    if (isAudioPlayingRef.current || audioBufferPromisesQueueRef.current.length === 0) {
       // Si la file est vide et que la réponse IA est complète, libérer le micro
-      if (audioQueueRef.current.length === 0 && aiResponseCompleteRef.current) {
-        console.log('🎤 Tous les audios joués, libération du micro');
+      if (audioBufferPromisesQueueRef.current.length === 0 && aiResponseCompleteRef.current) {
+        console.log('🎤 Toutes les phrases jouées, libération du micro');
         processingResponseRef.current = false;
         phoneCallService.setAISpeaking(false);
         setIsAISpeaking(false);
@@ -86,17 +94,23 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     }
 
     isAudioPlayingRef.current = true;
-    const sentence = audioQueueRef.current.shift()!;
+    const audioBufferPromise = audioBufferPromisesQueueRef.current.shift()!;
     
     try {
-      console.log('🔊 Lecture audio:', sentence);
-      await generateAndPlaySegmentAudio(sentence);
+      console.log('🔊 Attente et lecture AudioBuffer...');
+      const audioBuffer = await audioBufferPromise;
+      
+      if (audioBuffer) {
+        await playAudioBuffer(audioBuffer);
+      } else {
+        console.warn('⚠️ AudioBuffer null, passage au suivant');
+      }
     } catch (error) {
-      console.error('❌ Erreur lecture audio:', error);
+      console.error('❌ Erreur lecture AudioBuffer:', error);
     } finally {
       isAudioPlayingRef.current = false;
       // Continuer avec le prochain segment
-      processAudioQueue();
+      processAudioPlaybackQueue();
     }
   }, []);
 
@@ -156,7 +170,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     setAiThinking(true);
     
     // Réinitialiser la file d'attente audio
-    audioQueueRef.current = [];
+    audioBufferPromisesQueueRef.current = [];
     isAudioPlayingRef.current = false;
     aiResponseCompleteRef.current = false;
     shouldEndCallAfterAudioRef.current = false;

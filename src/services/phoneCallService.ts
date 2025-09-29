@@ -84,8 +84,8 @@ export class PhoneCallService {
             try {
               // Vérifier que la reconnaissance n'est pas déjà active
               if (!this.recognition.recognizing) {
-                this.recognition.start();
-                console.log('🔄 Reconnaissance vocale redémarrée automatiquement');
+              this.recognition.start();
+              console.log('🔄 Reconnaissance vocale redémarrée automatiquement');
               } else {
                 console.log('ℹ️ Reconnaissance vocale déjà active, pas de redémarrage nécessaire');
               }
@@ -108,8 +108,8 @@ export class PhoneCallService {
             try {
               // Vérifier que la reconnaissance n'est pas déjà active
               if (!this.recognition.recognizing) {
-                this.recognition.start();
-                console.log('🔄 Reconnaissance vocale redémarrée après erreur');
+              this.recognition.start();
+              console.log('🔄 Reconnaissance vocale redémarrée après erreur');
               }
             } catch (error) {
               console.error('❌ Erreur redémarrage après erreur reconnaissance:', error.message);
@@ -354,6 +354,18 @@ export class PhoneCallService {
       }
     }
   }
+                  this.recognition.start();
+                  console.log('🔄 Reconnaissance vocale redémarrée après IA');
+                }
+              }, 100);
+            } catch (error) {
+              console.error('❌ Erreur redémarrage reconnaissance vocale:', error);
+            }
+          }
+        }, 200);
+      }
+    }
+  }
 
   // Nouvelle méthode pour demander la permission du microphone sans commencer l'enregistrement
   async requestMicrophonePermission(): Promise<boolean> {
@@ -536,7 +548,10 @@ export class PhoneCallService {
       // AMÉLIORATION CRITIQUE: Transcription avec timeout pour éviter les blocages
       const transcriptionPromise = transcribeAudio(audioBlob);
       const timeoutPromise = new Promise<string>((_, reject) => {
-        setTimeout(() => reject(new Error('Transcription timeout')), 2000); // OPTIMISATION: 2.5s → 2s
+        setTimeout(() => reject(new Error('Transcription timeout')), 2000); // OPTIM
+    }
+  }
+}ISATION: 2.5s → 2s
       });
       
       const transcription = await Promise.race([transcriptionPromise, timeoutPromise]);

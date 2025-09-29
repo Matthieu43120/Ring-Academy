@@ -550,13 +550,50 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
                 </div>
               )}
 
-              {aiThinking && callState === 'connected' && (
-                <div className="bg-blue-900/50 border border-blue-500 rounded-lg p-3">
-                  <div className="flex items-center justify-center space-x-2 text-blue-300">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    <span className="ml-2 text-sm">L'IA réfléchit...</span>
+              {callState === 'connected' && (
+                <div className={`rounded-lg p-3 border ${
+                  aiThinking 
+                    ? 'bg-blue-900/50 border-blue-500' 
+                    : isAISpeaking 
+                      ? 'bg-purple-900/50 border-purple-500'
+                      : 'bg-green-900/50 border-green-500'
+                }`}>
+                  <div className={`flex items-center justify-center space-x-2 ${
+                    aiThinking 
+                      ? 'text-blue-300' 
+                      : isAISpeaking 
+                        ? 'text-purple-300'
+                        : 'text-green-300'
+                  }`}>
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      aiThinking 
+                        ? 'bg-blue-400' 
+                        : isAISpeaking 
+                          ? 'bg-purple-400'
+                          : 'bg-green-400'
+                    }`}></div>
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      aiThinking 
+                        ? 'bg-blue-400' 
+                        : isAISpeaking 
+                          ? 'bg-purple-400'
+                          : 'bg-green-400'
+                    }`} style={{ animationDelay: '0.1s' }}></div>
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      aiThinking 
+                        ? 'bg-blue-400' 
+                        : isAISpeaking 
+                          ? 'bg-purple-400'
+                          : 'bg-green-400'
+                    }`} style={{ animationDelay: '0.2s' }}></div>
+                    <span className="ml-2 text-sm">
+                      {aiThinking 
+                        ? 'L\'IA réfléchit...' 
+                        : isAISpeaking 
+                          ? 'L\'IA parle...'
+                          : 'L\'IA vous écoute...'
+                      }
+                    </span>
                   </div>
                 </div>
               )}
@@ -595,7 +632,12 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
 
             <div className="text-center mt-6">
               <p className="text-gray-400 text-sm">
-                {aiThinking ? 'L\'IA génère sa réponse...' : 'Parlez naturellement, l\'IA vous écoute'}
+                {aiThinking 
+                  ? 'Patientez pendant que l\'IA prépare sa réponse' 
+                  : isAISpeaking 
+                    ? 'Écoutez attentivement la réponse de l\'IA'
+                    : 'À votre tour ! Parlez naturellement'
+                }
               </p>
             </div>
           </div>

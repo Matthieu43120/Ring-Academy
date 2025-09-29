@@ -79,21 +79,7 @@ export class PhoneCallService {
     this.recognition.onend = () => {
       // CORRECTION CRITIQUE: Redémarrer automatiquement SEULEMENT si on écoute encore
       if (this.isListening && !this.isAISpeaking) {
-        setTimeout(() => {
-          if (this.isListening && !this.isAISpeaking) {
-            try {
-              // Vérifier que la reconnaissance n'est pas déjà active
-              if (!this.recognition.recognizing) {
-              this.recognition.start();
-              console.log('🔄 Reconnaissance vocale redémarrée automatiquement');
-              } else {
-                console.log('ℹ️ Reconnaissance vocale déjà active, pas de redémarrage nécessaire');
-              }
-            } catch (error) {
-              console.error('❌ Erreur redémarrage automatique reconnaissance vocale:', error.message);
-            }
-          }
-        }, 100);
+        this.restartRecognitionSafely('onend');
       } else {
         console.log('ℹ️ Reconnaissance vocale arrêtée (isListening:', this.isListening, 'isAISpeaking:', this.isAISpeaking, ')');
       }
@@ -103,19 +89,7 @@ export class PhoneCallService {
       // CORRECTION: Redémarrer même en cas d'erreur pour maintenir la conversation
       if (event.error === 'no-speech' || event.error === 'audio-capture') {
         console.log('⚠️ Erreur reconnaissance vocale:', event.error, '- Redémarrage...');
-        setTimeout(() => {
-          if (this.isListening && !this.isAISpeaking) {
-            try {
-              // Vérifier que la reconnaissance n'est pas déjà active
-              if (!this.recognition.recognizing) {
-              this.recognition.start();
-              console.log('🔄 Reconnaissance vocale redémarrée après erreur');
-              }
-            } catch (error) {
-              console.error('❌ Erreur redémarrage après erreur reconnaissance:', error.message);
-            }
-          }
-        }, 500);
+        this.restartRecognitionSafely('onerror', 500);
       } else {
         console.error('❌ Erreur reconnaissance vocale non gérée:', event.error);
       }
@@ -127,7 +101,6 @@ export class PhoneCallService {
 
   // NOUVEAU: Traitement en temps réel de la transcription
   private processTranscriptInRealTime(finalText: string, interimText: string) {
-
     // Mettre à jour les transcriptions
     if (finalText) {
       this.finalTranscript += finalText;
@@ -157,7 +130,7 @@ export class PhoneCallService {
 
   // AMÉLIORATION: Détection potentielle de fin de phrase avec protection
   private detectPotentialSentenceEnd(text: string) {
-    if (this.isProcessingMessage || this.isAISpeaking) {
+    if (this.isProcessingMessage) {
       return;
     }
 
@@ -331,28 +304,26 @@ export class PhoneCallService {
         console.log('📤 Envoi de la transcription accumulée:', this.finalTranscript.trim());
         this.sendTranscriptionToAI(this.finalTranscript.trim());
         this.resetTranscription();
-      }
-      
-      // CORRECTION CRITIQUE: Redémarrer explicitement la reconnaissance vocale si nécessaire
-      if (this.recognition && this.isListening) {
-        // Vérifier si la reconnaissance est active
-        setTimeout(() => {
-          if (this.isListening && !this.isAISpeaking) {
-            try {
-              // Vérifier l'état avant de redémarrer
-              if (!this.recognition.recognizing) {
-                console.log('🔄 Redémarrage de la reconnaissance vocale après IA');
-                this.recognition.start();
-              } else {
-                console.log('ℹ️ Reconnaissance vocale déjà active après IA');
-              }
-            } catch (error) {
-              console.error('❌ Erreur redémarrage reconnaissance vocale après IA:', error.message);
-            }
-          }
-        }, 200);
-      }
     }
+  }
+
+  // NOUVEAU: Méthode centralisée pour redémarrer la reconnaissance vocale en toute sécurité
+  private restartRecognitionSafely(source: string, delay: number = 100) {
+    setTimeout(() => {
+      if (this.isListening && !this.isAISpeaking && this.recognition) {
+        try {
+          // Vérifier que la reconnaissance n'est pas déjà active
+          if (!this.recognition.recognizing) {
+            this.recognition.start();
+            console.log(`🔄 Reconnaissance vocale redémarrée depuis ${source}`);
+          } else {
+            console.log(`ℹ️ Reconnaissance vocale déjà active, pas de redémarrage nécessaire (${source})`);
+          }
+        } catch (error) {
+          console.error(`❌ Erreur redémarrage reconnaissance vocale depuis ${source}:`, error.message);
+        }
+      }
+    }, delay);
   }
 
   // Nouvelle méthode pour demander la permission du microphone sans commencer l'enregistrement

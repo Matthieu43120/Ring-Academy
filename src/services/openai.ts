@@ -107,7 +107,8 @@ IMPORTANT:
 async function processStreamingResponse(
   response: Response,
   onPartialText?: (text: string) => void,
-  onTextReady?: (text: string) => void
+  onTextReady?: (text: string) => void,
+  onSentenceReadyForAudio?: (text: string) => void
 ): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) {
@@ -270,6 +271,34 @@ export async function generateAndPlaySegmentAudio(text: string): Promise<void> {
     // Fallback vers la synthèse vocale du navigateur
     await playTextImmediately(text);
   }
+}
+
+// Fonction fallback pour jouer le texte immédiatement avec la synthèse vocale
+export async function playTextImmediately(text: string): Promise<void> {
+  return new Promise((resolve) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 1.1;
+      utterance.pitch = 1.0;
+      
+      utterance.onend = () => {
+        console.log('🔊 Synthèse vocale terminée');
+        resolve();
+      };
+      
+      utterance.onerror = () => {
+        console.warn('⚠️ Erreur synthèse vocale');
+        resolve();
+      };
+      
+      speechSynthesis.speak(utterance);
+      console.log('🔊 Début synthèse vocale');
+    } else {
+      console.warn('⚠️ Synthèse vocale non supportée');
+      resolve();
+    }
+  });
 }
 
 // Fonction fallback pour jouer le texte immédiatement avec la synthèse vocale

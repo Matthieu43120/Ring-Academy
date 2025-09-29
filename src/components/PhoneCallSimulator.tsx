@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Phone, PhoneOff, Volume2, VolumeX } from 'lucide-react';
 import { TrainingConfig, SessionResult } from '../pages/Training';
-import { generateAIResponseFast, analyzeCall, ConversationContext, getAudioBufferForSentence, playAudioBuffer } from '../services/openai';
+import { generateAIResponseFast, analyzeCall, ConversationContext, getAudioBufferForSentence, playAudioBuffer, playTextImmediately } from '../services/openai';
 import { phoneCallService } from '../services/phoneCallService';
 
 interface PhoneCallSimulatorProps {
@@ -120,6 +120,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       const aiResponse = await generateAIResponseFast(
         context,
         true, // isFirstMessage
+        undefined, // onSentenceReadyForAudio - pas utilisé
         async (finalText) => {
           // Callback quand le texte final est prêt
           console.log('✅ Texte IA final reçu:', finalText);
@@ -259,6 +260,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       const aiResponse = await generateAIResponseFast(
         contextForAI,
         false,
+        undefined, // onSentenceReadyForAudio - pas utilisé
         async (finalText) => {
           // Callback quand le texte final est prêt
           console.log('✅ Texte IA final reçu:', finalText);

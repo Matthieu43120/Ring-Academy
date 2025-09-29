@@ -296,6 +296,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
               phoneCallService.setAISpeaking(false);
               setIsAISpeaking(false);
             }
+          }, 50);
         },
         (partialText) => {
           // Callback pour le texte partiel (feedback visuel)
@@ -321,6 +322,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       if (aiResponse.shouldEndCall) {
         shouldEndCallAfterAudioRef.current = true;
       }
+        }
 
     } catch (error) {
       console.error('❌ Erreur handleAIResponse:', error);

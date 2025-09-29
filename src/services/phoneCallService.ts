@@ -536,10 +536,7 @@ export class PhoneCallService {
       // AMÉLIORATION CRITIQUE: Transcription avec timeout pour éviter les blocages
       const transcriptionPromise = transcribeAudio(audioBlob);
       const timeoutPromise = new Promise<string>((_, reject) => {
-        setTimeout(() => reject(new Error('Transcription timeout')), 2000); // OPTIM
-    }
-  }
-}ISATION: 2.5s → 2s
+        setTimeout(() => reject(new Error('Transcription timeout')), 2000); // OPTIMISATION: 2.5s → 2s
       });
       
       const transcription = await Promise.race([transcriptionPromise, timeoutPromise]);

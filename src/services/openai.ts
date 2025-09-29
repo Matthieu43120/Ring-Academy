@@ -17,6 +17,7 @@ export interface ConversationContext {
 // Fonction pour générer une réponse IA rapide avec streaming
 export async function generateAIResponseFast(
   context: ConversationContext,
+  isFirstMessage: boolean,
   onTextReady?: (text: string) => void,
   onPartialText?: (text: string) => void
 ): Promise<{ message: string; shouldEndCall: boolean }> {

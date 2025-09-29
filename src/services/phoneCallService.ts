@@ -354,18 +354,6 @@ export class PhoneCallService {
       }
     }
   }
-                  this.recognition.start();
-                  console.log('🔄 Reconnaissance vocale redémarrée après IA');
-                }
-              }, 100);
-            } catch (error) {
-              console.error('❌ Erreur redémarrage reconnaissance vocale:', error);
-            }
-          }
-        }, 200);
-      }
-    }
-  }
 
   // Nouvelle méthode pour demander la permission du microphone sans commencer l'enregistrement
   async requestMicrophonePermission(): Promise<boolean> {

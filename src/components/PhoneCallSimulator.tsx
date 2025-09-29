@@ -120,7 +120,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       const aiResponse = await generateAIResponseFast(
         context,
         true, // isFirstMessage
-        undefined, // onSentenceReadyForAudio - pas utilisé
         async (finalText) => {
           // Callback quand le texte final est prêt
           console.log('✅ Texte IA final reçu:', finalText);
@@ -260,7 +259,6 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       const aiResponse = await generateAIResponseFast(
         contextForAI,
         false,
-        undefined, // onSentenceReadyForAudio - pas utilisé
         async (finalText) => {
           // Callback quand le texte final est prêt
           console.log('✅ Texte IA final reçu:', finalText);

@@ -15,7 +15,6 @@ export interface ConversationContext {
 // Fonction pour générer une réponse IA rapide avec streaming
 export async function generateAIResponseFast(
   context: ConversationContext,
-  isFirstMessage: boolean = false,
   onTextReady?: (text: string) => void,
   onPartialText?: (text: string) => void
 ): Promise<{ message: string; shouldEndCall: boolean }> {
@@ -58,7 +57,7 @@ export async function generateAIResponseFast(
       throw new Error(`Erreur HTTP ${response.status}: ${errorData.error || errorData.details || 'Erreur inconnue'}`);
     }
 
-    const finalMessage = await processStreamingResponse(response, onPartialText, onSentenceReadyForAudio, onTextReady);
+    const finalMessage = await processStreamingResponse(response, onPartialText, onTextReady);
     
     // Déterminer si l'appel doit se terminer
     const shouldEndCall = finalMessage.toLowerCase().includes('au revoir') || 

@@ -57,10 +57,6 @@ export class PhoneCallService {
     if (!this.recognition) return;
 
     this.recognition.onresult = (event: any) => {
-      // CRITIQUE: Ignorer si l'IA parle
-      if (this.isAISpeaking) {
-        return;
-      }
 
       let interimTranscript = '';
       let finalTranscript = '';
@@ -86,10 +82,15 @@ export class PhoneCallService {
         setTimeout(() => {
           if (this.isListening && !this.isAISpeaking) {
             try {
+              // Vérifier que la reconnaissance n'est pas déjà active
+              if (!this.recognition.recognizing) {
               this.recognition.start();
               console.log('🔄 Reconnaissance vocale redémarrée automatiquement');
+              } else {
+                console.log('ℹ️ Reconnaissance vocale déjà active, pas de redémarrage nécessaire');
+              }
             } catch (error) {
-              console.error('❌ Erreur redémarrage automatique reconnaissance vocale:', error);
+              console.error('❌ Erreur redémarrage automatique reconnaissance vocale:', error.message);
             }
           }
         }, 100);
@@ -105,10 +106,13 @@ export class PhoneCallService {
         setTimeout(() => {
           if (this.isListening && !this.isAISpeaking) {
             try {
+              // Vérifier que la reconnaissance n'est pas déjà active
+              if (!this.recognition.recognizing) {
               this.recognition.start();
               console.log('🔄 Reconnaissance vocale redémarrée après erreur');
+              }
             } catch (error) {
-              console.error('❌ Erreur redémarrage après erreur reconnaissance:', error);
+              console.error('❌ Erreur redémarrage après erreur reconnaissance:', error.message);
             }
           }
         }, 500);
@@ -123,10 +127,6 @@ export class PhoneCallService {
 
   // NOUVEAU: Traitement en temps réel de la transcription
   private processTranscriptInRealTime(finalText: string, interimText: string) {
-    // CRITIQUE: Ignorer si l'IA parle
-    if (this.isAISpeaking) {
-      return;
-    }
 
     // Mettre à jour les transcriptions
     if (finalText) {
@@ -264,7 +264,13 @@ export class PhoneCallService {
 
   // AMÉLIORATION CRITIQUE: Envoyer la transcription à l'IA avec protection renforcée
   private sendTranscriptionToAI(text: string) {
-    if (!text.trim() || !this.onTranscriptionCallback || this.isProcessingMessage || this.isAISpeaking) {
+    if (!text.trim() || !this.onTranscriptionCallback || this.isProcessingMessage) {
+      return;
+    }
+
+    // NOUVEAU: Ignorer seulement l'envoi si l'IA parle, mais permettre l'accumulation
+    if (this.isAISpeaking) {
+      console.log('🤖 IA parle encore, transcription mise en attente:', text.substring(0, 30) + '...');
       return;
     }
 
@@ -314,11 +320,18 @@ export class PhoneCallService {
     
     if (speaking) {
       // Quand l'IA commence à parler, réinitialiser la transcription
-      this.resetTranscription();
-      this.isProcessingMessage = false;
+      // NE PAS réinitialiser la transcription pour permettre l'accumulation
+      console.log('🤖 IA commence à parler, transcription continue en arrière-plan');
     } else {
       // Quand l'IA arrête de parler, permettre à nouveau la transcription
       console.log('🎤 Utilisateur peut maintenant parler');
+      
+      // NOUVEAU: Traiter la parole accumulée pendant que l'IA parlait
+      if (this.finalTranscript.trim()) {
+        console.log('📤 Envoi de la transcription accumulée:', this.finalTranscript.trim());
+        this.sendTranscriptionToAI(this.finalTranscript.trim());
+        this.resetTranscription();
+      }
       
       // CORRECTION CRITIQUE: Redémarrer explicitement la reconnaissance vocale si nécessaire
       if (this.recognition && this.isListening) {
@@ -326,10 +339,21 @@ export class PhoneCallService {
         setTimeout(() => {
           if (this.isListening && !this.isAISpeaking) {
             try {
-              // Forcer le redémarrage de la reconnaissance vocale
-              this.recognition.stop();
-              setTimeout(() => {
-                if (this.isListening && !this.isAISpeaking) {
+              // Vérifier l'état avant de redémarrer
+              if (!this.recognition.recognizing) {
+                console.log('🔄 Redémarrage de la reconnaissance vocale après IA');
+                this.recognition.start();
+              } else {
+                console.log('ℹ️ Reconnaissance vocale déjà active après IA');
+              }
+            } catch (error) {
+              console.error('❌ Erreur redémarrage reconnaissance vocale après IA:', error.message);
+            }
+          }
+        }, 200);
+      }
+    }
+  }
                   this.recognition.start();
                   console.log('🔄 Reconnaissance vocale redémarrée après IA');
                 }
@@ -400,6 +424,11 @@ export class PhoneCallService {
   private startSpeechRecognition() {
     if (!this.recognition) return;
 
+    // Vérifier si la reconnaissance est déjà active
+    if (this.recognition.recognizing) {
+      console.log('ℹ️ Reconnaissance vocale déjà active, pas de redémarrage');
+      return;
+    }
     this.isListening = true;
     this.isAISpeaking = false; // IMPORTANT: Reset de l'état IA
     this.resetTranscription();
@@ -407,8 +436,10 @@ export class PhoneCallService {
     this.isProcessingMessage = false;
     
     try {
+      console.log('🎤 Démarrage de la reconnaissance vocale continue');
       this.recognition.start();
     } catch (error) {
+      console.error('❌ Erreur démarrage reconnaissance vocale:', error.message);
       // Fallback vers l'ancienne méthode
       this.setupVoiceActivityDetection();
     }

@@ -301,34 +301,6 @@ export async function playTextImmediately(text: string): Promise<void> {
   });
 }
 
-// Fonction fallback pour jouer le texte immédiatement avec la synthèse vocale
-export async function playTextImmediately(text: string): Promise<void> {
-  return new Promise((resolve) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 1.1;
-      utterance.pitch = 1.0;
-      
-      utterance.onend = () => {
-        console.log('🔊 Synthèse vocale terminée');
-        resolve();
-      };
-      
-      utterance.onerror = () => {
-        console.warn('⚠️ Erreur synthèse vocale');
-        resolve();
-      };
-      
-      speechSynthesis.speak(utterance);
-      console.log('🔊 Début synthèse vocale');
-    } else {
-      console.warn('⚠️ Synthèse vocale non supportée');
-      resolve();
-    }
-  });
-}
-
 // Fonction pour transcrire l'audio (utilisée par phoneCallService)
 export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   try {

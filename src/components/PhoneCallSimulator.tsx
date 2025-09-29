@@ -268,7 +268,8 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
             if (!isMuted && callStateRef.current === 'connected') {
               try {
                 console.log('🎵 Génération et lecture audio complète...');
-                const audioBuffer = await getAudioBufferForSentence(finalText);
+                const contact = getContactInfo();
+                const audioBuffer = await getAudioBufferForSentence(finalText, contact.voice);
                 await playAudioBuffer(audioBuffer);
                 console.log('✅ Audio terminé, libération du micro');
                 

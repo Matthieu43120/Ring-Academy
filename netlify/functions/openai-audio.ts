@@ -61,20 +61,20 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
         };
       }
 
-      // Retourner l'audio en base64 pour éviter les problèmes de streaming
-      const audioBuffer = await response.arrayBuffer();
-      const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-
+      // Streamer l'audio directement depuis OpenAI
+      console.log('🎵 Streaming audio directement depuis OpenAI TTS');
+      
+      // Retourner le flux audio directement
       return {
         statusCode: 200,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'application/json',
+          'Content-Type': 'audio/mpeg',
+          'Cache-Control': 'no-cache',
+          'Transfer-Encoding': 'chunked',
         },
-        body: JSON.stringify({ 
-          audio: audioBase64,
-          contentType: 'audio/mpeg'
-        }),
+        body: response.body,
+        isBase64Encoded: false,
       };
     } else if (type === 'transcription') {
       // Pour la transcription, nous devrons gérer les FormData

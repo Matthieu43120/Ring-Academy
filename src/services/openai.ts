@@ -226,9 +226,9 @@ function extractCompleteSentences(text: string): string[] {
   return sentences;
 }
 
-// Fonction pour générer l'audio OpenAI de manière synchrone
-export async function generateOpenAIAudioSync(text: string): Promise<ArrayBuffer> {
-  console.log('🎤 Génération audio pour:', text.substring(0, 50) + '...');
+// Fonction pour streamer et jouer l'audio OpenAI en temps réel
+export async function streamOpenAIAudio(text: string): Promise<void> {
+  console.log('🎵 Streaming audio temps réel pour:', text.substring(0, 50) + '...');
   
   try {
     const response = await fetch(OPENAI_AUDIO_URL, {
@@ -250,55 +250,114 @@ export async function generateOpenAIAudioSync(text: string): Promise<ArrayBuffer
       throw new Error(`Erreur génération audio: ${response.status}`);
     }
 
-    // La fonction Netlify renvoie un objet JSON avec l'audio en Base64
-    const result = await response.json();
-    const audioBase64 = result.audio;
-    
-    if (!audioBase64) {
-      throw new Error('Aucun audio reçu de la fonction Netlify');
+    if (!response.body) {
+      throw new Error('Pas de flux audio reçu');
     }
+
+    console.log('🔊 Début streaming audio temps réel');
     
-    // Convertir le Base64 en ArrayBuffer
-    const binaryString = atob(audioBase64);
-    const audioBuffer = new ArrayBuffer(binaryString.length);
-    const uint8Array = new Uint8Array(audioBuffer);
+    // Créer un AudioContext pour la lecture en temps réel
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     
-    for (let i = 0; i < binaryString.length; i++) {
-      uint8Array[i] = binaryString.charCodeAt(i);
-    }
+    // Utiliser l'API MediaSource pour le streaming audio
+    await playStreamingAudio(response.body, audioContext);
     
-    console.log('✅ Audio généré, taille:', audioBuffer.byteLength);
-    return audioBuffer;
   } catch (error) {
-    console.error('❌ Erreur génération audio:', error);
+    console.error('❌ Erreur streaming audio:', error);
     throw error;
   }
 }
 
-// Fonction pour jouer l'audio OpenAI directement
-export async function playOpenAIAudioDirectly(audioBuffer: ArrayBuffer): Promise<void> {
-  return new Promise((resolve, reject) => {
+// Fonction pour jouer un flux audio en temps réel
+async function playStreamingAudio(stream: ReadableStream<Uint8Array>, audioContext: AudioContext): Promise<void> {
+  return new Promise(async (resolve, reject) => {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const reader = stream.getReader();
+      const chunks: Uint8Array[] = [];
+      let totalLength = 0;
+      let isPlaying = false;
       
-      audioContext.decodeAudioData(audioBuffer.slice(0), (decodedData) => {
-        const source = audioContext.createBufferSource();
-        source.buffer = decodedData;
-        source.connect(audioContext.destination);
+      // Lire le flux par chunks
+      const readChunk = async () => {
+        try {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            console.log('🔊 Fin du flux audio');
+            // Jouer les derniers chunks s'il en reste
+            if (chunks.length > 0 && !isPlaying) {
+              await playAccumulatedChunks();
+            }
+            resolve();
+            return;
+          }
+          
+          if (value) {
+            chunks.push(value);
+            totalLength += value.length;
+            
+            // Commencer la lecture dès qu'on a assez de données (environ 8KB)
+            if (!isPlaying && totalLength > 8192) {
+              isPlaying = true;
+              await playAccumulatedChunks();
+            }
+          }
+          
+          // Continuer à lire
+          readChunk();
+        } catch (error) {
+          console.error('❌ Erreur lecture chunk:', error);
+          reject(error);
+        }
+      };
+      
+      // Fonction pour jouer les chunks accumulés
+      const playAccumulatedChunks = async () => {
+        if (chunks.length === 0) return;
         
-        source.onended = () => {
-          console.log('🔊 Lecture audio terminée');
-          resolve();
-        };
-        
-        source.start(0);
-        console.log('🔊 Début lecture audio');
-      }, (error) => {
-        console.error('❌ Erreur décodage audio:', error);
-        reject(error);
-      });
+        try {
+          // Combiner tous les chunks en un seul ArrayBuffer
+          const combinedBuffer = new ArrayBuffer(totalLength);
+          const combinedView = new Uint8Array(combinedBuffer);
+          let offset = 0;
+          
+          for (const chunk of chunks) {
+            combinedView.set(chunk, offset);
+            offset += chunk.length;
+          }
+          
+          // Décoder et jouer l'audio
+          const audioBuffer = await audioContext.decodeAudioData(combinedBuffer);
+          const source = audioContext.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioContext.destination);
+          
+          source.onended = () => {
+            console.log('🔊 Lecture chunk terminée');
+          };
+          
+          source.start(0);
+          console.log('🔊 Lecture chunk démarrée');
+          
+          // Réinitialiser pour le prochain batch
+          chunks.length = 0;
+          totalLength = 0;
+          isPlaying = false;
+          
+        } catch (error) {
+          console.error('❌ Erreur lecture chunk audio:', error);
+          // Continuer malgré l'erreur
+          chunks.length = 0;
+          totalLength = 0;
+          isPlaying = false;
+        }
+      };
+      
+      // Démarrer la lecture du flux
+      readChunk();
+      
     } catch (error) {
-      console.error('❌ Erreur lecture audio:', error);
+      console.error('❌ Erreur setup streaming audio:', error);
       reject(error);
     }
   });
@@ -308,8 +367,7 @@ export async function playOpenAIAudioDirectly(audioBuffer: ArrayBuffer): Promise
 export async function generateAndPlaySegmentAudio(text: string): Promise<void> {
   try {
     console.log('🎵 Génération et lecture pour:', text.substring(0, 30) + '...');
-    const audioBuffer = await generateOpenAIAudioSync(text);
-    await playOpenAIAudioDirectly(audioBuffer);
+    await streamOpenAIAudio(text);
   } catch (error) {
     console.error('❌ Erreur génération/lecture segment:', error);
     // Fallback vers la synthèse vocale du navigateur

@@ -75,7 +75,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       callStateRef.current = 'ringing';
       
       // Démarrer la préparation de la première réponse IA en parallèle
-      const aiResponsePromise = this.prepareFirstAIResponse();
+      const aiResponsePromise = prepareFirstAIResponse();
       
       // Jouer la sonnerie (maintenant plus longue)
       await phoneCallService.playRingtone();
@@ -86,7 +86,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       setStartTime(new Date());
       
       // Attendre que la première réponse IA soit prête et la jouer immédiatement
-      await this.playFirstAIResponse(aiResponsePromise);
+      await playFirstAIResponse(aiResponsePromise);
       
       // Activation du microphone immédiatement après la première réponse
       if (phoneCallService.isSupported()) {
@@ -101,7 +101,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   };
 
   // Nouvelle méthode pour préparer la première réponse IA
-  private prepareFirstAIResponse = async () => {
+  const prepareFirstAIResponse = async () => {
     setError(null);
     setAiThinking(true);
     
@@ -138,7 +138,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   };
 
   // Nouvelle méthode pour jouer la première réponse IA préparée
-  private playFirstAIResponse = async (aiResponsePromise: Promise<any>) => {
+  const playFirstAIResponse = async (aiResponsePromise: Promise<any>) => {
     try {
       setAiThinking(false);
       setIsAISpeaking(true);

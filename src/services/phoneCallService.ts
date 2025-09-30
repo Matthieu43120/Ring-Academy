@@ -101,6 +101,12 @@ export class PhoneCallService {
 
   // NOUVEAU: Traitement en temps réel de la transcription
   private processTranscriptInRealTime(finalText: string, interimText: string) {
+    // CRITIQUE: Ignorer complètement la transcription si l'IA est en train de parler
+    if (this.isAISpeaking) {
+      console.log('🤖 IA parle, transcription ignorée:', (finalText + interimText).substring(0, 30) + '...');
+      return;
+    }
+
     // Mettre à jour les transcriptions
     if (finalText) {
       this.finalTranscript += finalText;

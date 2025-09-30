@@ -293,18 +293,18 @@ export class PhoneCallService {
     
     if (speaking) {
       // Quand l'IA commence à parler, réinitialiser la transcription
-      // NE PAS réinitialiser la transcription pour permettre l'accumulation
-      console.log('🤖 IA commence à parler, transcription continue en arrière-plan');
+      console.log('🤖 IA commence à parler, réinitialisation de la transcription');
+      this.resetTranscription();
+      this.lastSentMessage = '';
+      this.isProcessingMessage = false;
     } else {
       // Quand l'IA arrête de parler, permettre à nouveau la transcription
       console.log('🎤 Utilisateur peut maintenant parler');
       
-      // NOUVEAU: Traiter la parole accumulée pendant que l'IA parlait
-      if (this.finalTranscript.trim()) {
-        console.log('📤 Envoi de la transcription accumulée:', this.finalTranscript.trim());
-        this.sendTranscriptionToAI(this.finalTranscript.trim());
-        this.resetTranscription();
-      }
+      // Réinitialiser complètement pour attendre une nouvelle prise de parole
+      this.resetTranscription();
+      this.lastSentMessage = '';
+      this.isProcessingMessage = false;
     }
   }
 

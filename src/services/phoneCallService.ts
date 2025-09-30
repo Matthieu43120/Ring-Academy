@@ -77,7 +77,7 @@ export class PhoneCallService {
     };
 
     this.recognition.onend = () => {
-      // CORRECTION CRITIQUE: Redémarrer automatiquement SEULEMENT si on écoute encore
+      // CORRECTION CRITIQUE: Redémarrer automatiquement SEULEMENT si on écoute encore ET que l'IA ne parle pas
       if (this.isListening && !this.isAISpeaking) {
         this.restartRecognitionSafely('onend');
       } else {
@@ -86,12 +86,12 @@ export class PhoneCallService {
     };
 
     this.recognition.onerror = (event: any) => {
-      // CORRECTION: Redémarrer même en cas d'erreur pour maintenir la conversation
-      if (event.error === 'no-speech' || event.error === 'audio-capture') {
+      // CORRECTION: Redémarrer même en cas d'erreur pour maintenir la conversation, mais seulement si l'IA ne parle pas
+      if ((event.error === 'no-speech' || event.error === 'audio-capture') && !this.isAISpeaking) {
         console.log('⚠️ Erreur reconnaissance vocale:', event.error, '- Redémarrage...');
         this.restartRecognitionSafely('onerror', 500);
       } else {
-        console.error('❌ Erreur reconnaissance vocale non gérée:', event.error);
+        console.error('❌ Erreur reconnaissance vocale non gérée ou IA parle:', event.error, 'isAISpeaking:', this.isAISpeaking);
       }
     };
 
@@ -298,19 +298,32 @@ export class PhoneCallService {
     console.log('🤖 IA speaking state:', speaking);
     
     if (speaking) {
-      // Quand l'IA commence à parler, réinitialiser la transcription
+      // Quand l'IA commence à parler, arrêter explicitement la reconnaissance vocale
       console.log('🤖 IA commence à parler, réinitialisation de la transcription');
+      if (this.recognition && this.isListening) {
+        try {
+          this.recognition.stop();
+          console.log('🛑 Reconnaissance vocale arrêtée explicitement (IA parle)');
+        } catch (error) {
+          console.warn('⚠️ Erreur arrêt reconnaissance vocale:', error);
+        }
+      }
       this.resetTranscription();
       this.lastSentMessage = '';
       this.isProcessingMessage = false;
     } else {
-      // Quand l'IA arrête de parler, permettre à nouveau la transcription
+      // Quand l'IA arrête de parler, redémarrer la reconnaissance vocale après un court délai
       console.log('🎤 Utilisateur peut maintenant parler');
       
       // Réinitialiser complètement pour attendre une nouvelle prise de parole
       this.resetTranscription();
       this.lastSentMessage = '';
       this.isProcessingMessage = false;
+      
+      // Redémarrer la reconnaissance vocale après un court délai
+      if (this.isListening) {
+        this.restartRecognitionSafely('AI_finished_speaking', 100);
+      }
     }
   }
 
@@ -319,16 +332,21 @@ export class PhoneCallService {
     setTimeout(() => {
       if (this.isListening && !this.isAISpeaking && this.recognition) {
         try {
-          // Vérifier que la reconnaissance n'est pas déjà active
-          if (!this.recognition.recognizing) {
+          // Toujours essayer de redémarrer car l'état peut être incohérent
+          console.log(`🔄 Tentative redémarrage reconnaissance vocale depuis ${source}`);
             this.recognition.start();
             console.log(`🔄 Reconnaissance vocale redémarrée depuis ${source}`);
-          } else {
-            console.log(`ℹ️ Reconnaissance vocale déjà active, pas de redémarrage nécessaire (${source})`);
-          }
         } catch (error) {
-          console.error(`❌ Erreur redémarrage reconnaissance vocale depuis ${source}:`, error.message);
+          console.warn(`⚠️ Erreur redémarrage reconnaissance vocale depuis ${source}:`, error.message);
+          // En cas d'erreur, réessayer une fois après un délai plus long
+          if (source !== 'retry') {
+            setTimeout(() => {
+              this.restartRecognitionSafely('retry', 0);
+            }, 1000);
+          }
         }
+      } else {
+        console.log(`ℹ️ Conditions non remplies pour redémarrage (${source}): isListening=${this.isListening}, isAISpeaking=${this.isAISpeaking}`);
       }
     }, delay);
   }

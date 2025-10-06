@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://ringacademy.fr/sitemap.xml
+
+# Disallow private pages
+Disallow: /dashboard
+Disallow: /reset-password
+Disallow: /forgot-password

@@ -17,13 +17,31 @@ function Ressources() {
     // }
   ];
 
+  const categories = [
+    { name: "Prospection", color: "bg-blue-100 text-blue-800" },
+    { name: "Vente", color: "bg-green-100 text-green-800" },
+    { name: "Négociation", color: "bg-purple-100 text-purple-800" },
+    { name: "Management", color: "bg-orange-100 text-orange-800" }
+  ];
+
   return (
-    return { icon: HelpCircle, color: "from-gray-500 to-gray-600" };
+    <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-white">
+      <div className="container mx-auto px-4 py-16">
         {/* Header */}
         <div className="text-center mb-16">
           <div className="flex justify-center mb-6">
             <div className="bg-primary p-4 rounded-xl">
               <BookOpen className="h-12 w-12 text-white" />
+            </div>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-secondary-900 mb-6 font-display">
+            Ressources & Articles
+          </h1>
+          <p className="text-xl text-secondary-600 max-w-3xl mx-auto leading-relaxed">
+            Découvrez nos conseils, stratégies et bonnes pratiques pour améliorer vos performances commerciales
+          </p>
+        </div>
+
         {/* Articles Grid */}
         {articles.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

@@ -20,6 +20,7 @@ import Contact from './pages/Contact';
 import APropos from './pages/APropos';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Ressources from './pages/Ressources';
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
             <Route path="/guide-utilisation" element={<GuideUtilisation />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/a-propos" element={<APropos />} />
+            <Route path="/ressources" element={<Ressources />} />
           </Routes>
         </Layout>
       </Router>

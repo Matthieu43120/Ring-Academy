@@ -85,6 +85,11 @@ function Footer() {
                   Contact
                 </Link>
               </li>
+              <li>
+                <Link to="/ressources" className="text-neutral-300 hover:text-white transition-colors">
+                  Ressources
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

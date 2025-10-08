@@ -21,6 +21,7 @@ import APropos from './pages/APropos';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Ressources from './pages/Ressources';
+import ArticleDetail from './pages/ArticleDetail';
 
 function App() {
   return (
@@ -47,6 +48,7 @@ function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/a-propos" element={<APropos />} />
             <Route path="/ressources" element={<Ressources />} />
+            <Route path="/ressources/:slug" element={<ArticleDetail />} />
           </Routes>
         </Layout>
       </Router>

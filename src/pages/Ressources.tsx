@@ -1,28 +1,51 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BookOpen, Calendar, User, ArrowRight, Clock, Tag } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { getAllArticles } from '../data/articles';
+import {
+  updatePageTitle,
+  updateMetaDescription,
+  updateMetaKeywords,
+  updateCanonicalUrl,
+  updateOpenGraphTags
+} from '../utils/seo';
 
 function Ressources() {
-  // Articles placeholder - vous pourrez ajouter vos articles ici
-  const articles = [
-    // Exemple d'article pour montrer la structure
-    // {
-    //   id: 1,
-    //   title: "Les 5 erreurs à éviter lors d'un appel de prospection",
-    //   excerpt: "Découvrez les erreurs les plus courantes en prospection téléphonique et comment les éviter pour améliorer vos résultats.",
-    //   content: "Contenu complet de l'article...",
-    //   author: "Matthieu Alexander",
-    //   date: "2024-12-01",
-    //   category: "Prospection",
-    //   readTime: "5 min"
-    // }
-  ];
+  const articles = getAllArticles();
 
-  const categories = [
-    { name: "Prospection", color: "bg-blue-100 text-blue-800" },
-    { name: "Vente", color: "bg-green-100 text-green-800" },
-    { name: "Négociation", color: "bg-purple-100 text-purple-800" },
-    { name: "Management", color: "bg-orange-100 text-orange-800" }
-  ];
+  useEffect(() => {
+    const pageUrl = `${window.location.origin}/ressources`;
+
+    updatePageTitle('Ressources & Articles - Ring Academy | Formation Prospection Téléphonique');
+    updateMetaDescription('Découvrez nos articles sur la prospection téléphonique, la formation commerciale et le développement des compétences en vente. Conseils, stratégies et bonnes pratiques pour améliorer vos performances.');
+    updateMetaKeywords([
+      'formation prospection téléphonique',
+      'formation commerciale',
+      'articles prospection',
+      'conseils vente',
+      'techniques commerciales',
+      'blog commercial'
+    ]);
+    updateCanonicalUrl(pageUrl);
+    updateOpenGraphTags({
+      title: 'Ressources & Articles - Ring Academy',
+      description: 'Découvrez nos articles sur la prospection téléphonique, la formation commerciale et le développement des compétences en vente.',
+      url: pageUrl,
+      type: 'website'
+    });
+
+    return () => {
+      updatePageTitle('Ring Academy - Formation à la prospection téléphonique par IA');
+      updateMetaDescription('Entraînez-vous à la prospection téléphonique avec notre IA conversationnelle. Améliorez vos compétences commerciales grâce à des simulations d\'appels réalistes.');
+    };
+  }, []);
+
+  const categoryColors: Record<string, string> = {
+    'Prospection': 'bg-blue-100 text-blue-800',
+    'Vente': 'bg-green-100 text-green-800',
+    'Négociation': 'bg-amber-100 text-amber-800',
+    'Management': 'bg-orange-100 text-orange-800'
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-white">
@@ -54,8 +77,9 @@ function Ressources() {
                   {/* Category and Read Time */}
                   <div className="flex items-center justify-between mb-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      categories.find(cat => cat.name === article.category)?.color || 'bg-gray-100 text-gray-800'
+                      categoryColors[article.category] || 'bg-gray-100 text-gray-800'
                     }`}>
+                      <Tag className="inline h-3 w-3 mr-1 -mt-0.5" />
                       {article.category}
                     </span>
                     <div className="flex items-center space-x-1 text-xs text-secondary-600">
@@ -82,17 +106,20 @@ function Ressources() {
                     </div>
                     <div className="flex items-center space-x-2">
                       <Calendar className="h-4 w-4 text-secondary-500" />
-                      <span className="text-sm text-secondary-600">
-                        {new Date(article.date).toLocaleDateString('fr-FR')}
-                      </span>
+                      <time dateTime={article.publishedAt} className="text-sm text-secondary-600">
+                        {new Date(article.publishedAt).toLocaleDateString('fr-FR')}
+                      </time>
                     </div>
                   </div>
 
                   {/* Read More Button */}
-                  <button className="mt-4 w-full bg-primary-50 text-primary-600 px-4 py-2 rounded-lg font-medium hover:bg-primary-100 transition-colors flex items-center justify-center space-x-2">
+                  <Link
+                    to={`/ressources/${article.slug}`}
+                    className="mt-4 w-full bg-primary-50 text-primary-600 px-4 py-2 rounded-lg font-medium hover:bg-primary-100 transition-colors flex items-center justify-center space-x-2"
+                  >
                     <span>Lire l'article</span>
                     <ArrowRight className="h-4 w-4" />
-                  </button>
+                  </Link>
                 </div>
               </article>
             ))}

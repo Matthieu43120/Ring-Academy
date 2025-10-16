@@ -23,7 +23,7 @@ export const articles: Article[] = [
     metaDescription: 'Découvrez Ring Academy, la plateforme innovante de formation commerciale qui utilise l\'IA pour simuler des appels de prospection téléphonique réalistes. Entraînez-vous à la prise de rendez-vous client et développez vos compétences en prospection.',
     excerpt: 'Après plusieurs mois de travail, Ring Academy voit le jour 🎉 Cette plateforme en ligne a été pensée pour répondre à un manque que tout commercial connaît : la pratique de la prospection téléphonique.',
     author: 'Équipe Ring Academy',
-    publishedAt: '2025-01-08',
+    publishedAt: '2025-10-08',
     category: 'Prospection',
     readTime: '5 min',
     keywords: [

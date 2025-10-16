@@ -52,6 +52,8 @@ export const articles: Article[] = [
 
       <h2>Pourquoi s'entraîner avec une secrétaire IA ?</h2>
 
+      <div style="margin-bottom: 2rem;"></div>
+
       <ul>
         <li><strong>Permet de réaliser des erreurs sans conséquence</strong> et d'apprendre de vos échecs.</li>
         <li><strong>Développe la confiance et le ton</strong> avant les vrais appels B2B.</li>
@@ -59,7 +61,11 @@ export const articles: Article[] = [
         <li><strong>Utile pour les indépendants ou entrepreneurs</strong> qui veulent améliorer leur taux de réussite sur la <strong>prise de rendez-vous</strong>.</li>
       </ul>
 
+      <div style="margin-bottom: 3rem;"></div>
+
       <h2>5 bonnes pratiques pour passer le barrage d'une secrétaire</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
 
       <h3>1. Préparez votre appel</h3>
       <ul>
@@ -68,6 +74,8 @@ export const articles: Article[] = [
         <li>Anticipez les objections classiques : "Il/elle est occupé(e)", "Je ne peux pas vous transférer".</li>
       </ul>
 
+      <div style="margin-bottom: 1.5rem;"></div>
+
       <h3>2. Soyez professionnel et respectueux</h3>
       <ul>
         <li>La secrétaire est là pour protéger le temps du décideur, pas pour vous bloquer.</li>
@@ -75,11 +83,15 @@ export const articles: Article[] = [
         <li>Écoutez attentivement ses questions et répondez avec pertinence.</li>
       </ul>
 
+      <div style="margin-bottom: 1.5rem;"></div>
+
       <h3>3. Apportez de la valeur immédiate</h3>
       <ul>
         <li>Montrez que vous avez fait vos recherches sur l'entreprise.</li>
         <li>Expliquez rapidement en quoi votre solution apporte un bénéfice concret.</li>
       </ul>
+
+      <div style="margin-bottom: 1.5rem;"></div>
 
       <h3>4. Posez des questions ouvertes</h3>
       <p>Exemple :</p>
@@ -88,13 +100,19 @@ export const articles: Article[] = [
         <li>"Quelles informations seraient utiles pour que je présente ma proposition ?"</li>
       </ul>
 
+      <div style="margin-bottom: 1.5rem;"></div>
+
       <h3>5. Entraînez-vous régulièrement</h3>
       <ul>
         <li>La répétition est clé pour maîtriser le timing et le ton.</li>
         <li><strong>Ring Academy</strong> vous permet de simuler des appels avec Marie Dubois, afin de progresser rapidement et efficacement.</li>
       </ul>
 
+      <div style="margin-bottom: 3rem;"></div>
+
       <h2>Conclusion</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
 
       <p>Passer le barrage d'une secrétaire est souvent le premier vrai test de votre capacité à convaincre en <strong>prospection téléphonique</strong>. Avec un <strong>entraînement régulier sur Ring Academy</strong>, vous pourrez transformer ces obstacles en opportunités et améliorer votre taux de conversion, que vous soyez commercial, indépendant ou formateur souhaitant enrichir vos modules.</p>
     `

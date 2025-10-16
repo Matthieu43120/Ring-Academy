@@ -16,6 +16,90 @@ export interface Article {
 
 export const articles: Article[] = [
   {
+    id: '2',
+    slug: 'passer-barrage-secretaire-prospection-telephonique',
+    title: 'Passer le barrage de la secrétaire en prospection téléphonique',
+    metaTitle: 'Passer le barrage de la secrétaire en prospection téléphonique',
+    metaDescription: 'Découvrez comment franchir efficacement le barrage d\'une secrétaire lors de vos appels de prospection B2B. Entraînez-vous avec Marie Dubois, la secrétaire IA de Ring Academy, et améliorez votre taux de réussite.',
+    excerpt: 'Dans la prospection B2B, le premier contact avec un prospect est souvent filtré par une secrétaire ou assistante. Savoir passer ce barrage est crucial pour réussir vos appels et décrocher des rendez-vous qualifiés.',
+    author: 'Équipe Ring Academy',
+    publishedAt: '2025-10-16',
+    category: 'Prospection',
+    readTime: '6 min',
+    keywords: [
+      'barrage secrétaire',
+      'prospection téléphonique',
+      'formation commerciale',
+      'prospection B2B',
+      'prise de rendez-vous',
+      'entraînement commercial',
+      'simulation appel'
+    ],
+    featured: true,
+    content: `
+      <p>Dans la <strong>prospection B2B</strong>, le premier contact avec un prospect est souvent filtré par une secrétaire ou assistante. Savoir passer ce barrage est crucial pour réussir vos appels et décrocher des <strong>rendez-vous qualifiés</strong>.</p>
+
+      <p>Pour aider les commerciaux, indépendants ou entreprises à se former efficacement, Ring Academy a créé <strong>Marie Dubois, la secrétaire IA</strong>, qui simule des situations réelles et vous permet de vous entraîner à la <strong>prospection téléphonique</strong> avant vos vrais appels.</p>
+
+      <h2>Rencontre avec Marie Dubois, la secrétaire IA</h2>
+
+      <blockquote style="border-left: 4px solid #2563eb; padding-left: 1rem; font-style: italic; color: #475569; margin: 1.5rem 0;">
+        <p>« Je suis Marie Dubois, secrétaire chez Ring Academy.</p>
+        <p>Je suis souvent le premier obstacle que rencontrent les commerciaux. Mon rôle ? Filtrer les appels et décider rapidement si je peux vous communiquer des informations ou vous transférer à mon responsable.</p>
+        <p>Ici, vous pouvez vous entraîner à me convaincre, tester vos arguments et comprendre ce qui fait que je juge un appel intéressant et digne d'être transmis.</p>
+        <p>Je ne suis pas facile à convaincre… mais si vous réussissez, c'est que vous avez franchi la première vraie étape d'un appel réussi. »</p>
+      </blockquote>
+
+      <h2>Pourquoi s'entraîner avec une secrétaire IA ?</h2>
+
+      <ul>
+        <li><strong>Permet de réaliser des erreurs sans conséquence</strong> et d'apprendre de vos échecs.</li>
+        <li><strong>Développe la confiance et le ton</strong> avant les vrais appels B2B.</li>
+        <li><strong>Idéal pour les formateurs et organismes de formation</strong> souhaitant enrichir leurs modules de <strong>prospection téléphonique</strong>.</li>
+        <li><strong>Utile pour les indépendants ou entrepreneurs</strong> qui veulent améliorer leur taux de réussite sur la <strong>prise de rendez-vous</strong>.</li>
+      </ul>
+
+      <h2>5 bonnes pratiques pour passer le barrage d'une secrétaire</h2>
+
+      <h3>1. Préparez votre appel</h3>
+      <ul>
+        <li>Connaissez le nom et le rôle du décideur.</li>
+        <li>Formulez une phrase d'accroche claire et concise.</li>
+        <li>Anticipez les objections classiques : "Il/elle est occupé(e)", "Je ne peux pas vous transférer".</li>
+      </ul>
+
+      <h3>2. Soyez professionnel et respectueux</h3>
+      <ul>
+        <li>La secrétaire est là pour protéger le temps du décideur, pas pour vous bloquer.</li>
+        <li>Parlez avec confiance mais sans arrogance.</li>
+        <li>Écoutez attentivement ses questions et répondez avec pertinence.</li>
+      </ul>
+
+      <h3>3. Apportez de la valeur immédiate</h3>
+      <ul>
+        <li>Montrez que vous avez fait vos recherches sur l'entreprise.</li>
+        <li>Expliquez rapidement en quoi votre solution apporte un bénéfice concret.</li>
+      </ul>
+
+      <h3>4. Posez des questions ouvertes</h3>
+      <p>Exemple :</p>
+      <ul>
+        <li>"Quand M. X serait-il disponible pour échanger ?"</li>
+        <li>"Quelles informations seraient utiles pour que je présente ma proposition ?"</li>
+      </ul>
+
+      <h3>5. Entraînez-vous régulièrement</h3>
+      <ul>
+        <li>La répétition est clé pour maîtriser le timing et le ton.</li>
+        <li><strong>Ring Academy</strong> vous permet de simuler des appels avec Marie Dubois, afin de progresser rapidement et efficacement.</li>
+      </ul>
+
+      <h2>Conclusion</h2>
+
+      <p>Passer le barrage d'une secrétaire est souvent le premier vrai test de votre capacité à convaincre en <strong>prospection téléphonique</strong>. Avec un <strong>entraînement régulier sur Ring Academy</strong>, vous pourrez transformer ces obstacles en opportunités et améliorer votre taux de conversion, que vous soyez commercial, indépendant ou formateur souhaitant enrichir vos modules.</p>
+    `
+  },
+  {
     id: '1',
     slug: 'ring-academy-formation-pratique-prospection-telephonique-ia',
     title: 'Ring Academy : la formation à la prospection téléphonique 100% pratique',

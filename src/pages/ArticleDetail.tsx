@@ -113,7 +113,17 @@ function ArticleDetail() {
               </div>
 
               <div
-                className="prose prose-lg max-w-none prose-headings:font-display prose-headings:text-secondary-900 prose-p:text-secondary-700 prose-p:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-secondary-900 prose-strong:font-semibold prose-ul:text-secondary-700 prose-li:my-2"
+                className="prose prose-lg max-w-none
+                  prose-headings:font-display prose-headings:text-secondary-900 prose-headings:mb-6 prose-headings:mt-10
+                  prose-h2:text-3xl prose-h2:font-bold prose-h2:mt-12 prose-h2:mb-6
+                  prose-h3:text-xl prose-h3:font-semibold prose-h3:mt-8 prose-h3:mb-4
+                  prose-p:text-secondary-700 prose-p:leading-relaxed prose-p:mb-6 prose-p:text-lg
+                  prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline
+                  prose-strong:text-secondary-900 prose-strong:font-semibold
+                  prose-ul:text-secondary-700 prose-ul:space-y-3 prose-ul:my-6
+                  prose-li:text-lg prose-li:leading-relaxed prose-li:pl-2
+                  prose-blockquote:border-l-4 prose-blockquote:border-primary-500 prose-blockquote:pl-6 prose-blockquote:py-4 prose-blockquote:my-8 prose-blockquote:bg-neutral-50 prose-blockquote:rounded-r-lg
+                  [&_ul]:list-none [&_ul>li]:relative [&_ul>li]:pl-6 [&_ul>li]:before:content-['•'] [&_ul>li]:before:absolute [&_ul>li]:before:left-0 [&_ul>li]:before:text-primary-600 [&_ul>li]:before:font-bold [&_ul>li]:before:text-xl"
                 dangerouslySetInnerHTML={{ __html: article.content }}
               />
 

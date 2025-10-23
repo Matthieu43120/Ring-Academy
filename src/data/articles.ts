@@ -16,6 +16,107 @@ export interface Article {
 
 export const articles: Article[] = [
   {
+    id: '3',
+    slug: 'comment-entrainer-prospection-telephonique',
+    title: 'Comment s\'entraîner à la prospection téléphonique',
+    metaTitle: 'Comment s\'entraîner à la prospection téléphonique',
+    metaDescription: 'Découvrez comment vous entraîner efficacement à la prospection téléphonique avec Thomas Durand, Directeur commercial IA. Améliorez votre pitch et vos techniques de vente pour convaincre les décideurs exigeants.',
+    excerpt: 'Dans la prospection B2B, atteindre un décideur exigeant est souvent un défi majeur. Ces derniers reçoivent de nombreux appels chaque semaine et savent immédiatement repérer un pitch faible ou mal préparé.',
+    author: 'Équipe Ring Academy',
+    publishedAt: '2025-10-16',
+    category: 'Prospection',
+    readTime: '7 min',
+    keywords: [
+      's\'entraîner prospection téléphonique',
+      'formation commerciale',
+      'prospection B2B',
+      'pitch commercial',
+      'convaincre décideur',
+      'directeur commercial',
+      'simulation appel'
+    ],
+    featured: true,
+    content: `
+      <p>Dans la <strong>prospection B2B</strong>, atteindre un décideur exigeant est souvent un défi majeur. Ces derniers reçoivent de nombreux appels chaque semaine et savent immédiatement repérer un pitch faible ou mal préparé.</p>
+
+      <p>Pour aider les commerciaux, indépendants et formateurs à se préparer efficacement, Ring Academy a créé <strong>Thomas Durand, Directeur commercial IA</strong>, qui simule un prospect exigeant. Cela permet de <strong>s'entraîner à la prospection téléphonique</strong> en conditions réalistes avant d'appeler de vrais décideurs.</p>
+
+      <h2>Rencontre avec Thomas Durand, Directeur commercial IA</h2>
+
+      <blockquote style="border-left: 4px solid #2563eb; padding-left: 1rem; font-style: italic; color: #475569; margin: 1.5rem 0;">
+        <p>« Je suis Thomas Durand, Directeur commercial.</p>
+        <p>Autant dire que je reconnais un bon pitch dès les premières secondes.</p>
+        <p>Si vous m'appelez, attendez-vous à être challengé : je connais toutes les approches, toutes les objections… et je ne me laisse pas convaincre facilement.</p>
+        <p>Montrez-moi que vous comprenez mes enjeux et que votre solution crée une vraie valeur business. Dans ce cas, vous aurez peut-être une chance de décrocher un rendez-vous.</p>
+        <p>Vous pensez pouvoir y arriver ? Venez vous mesurer à moi. »</p>
+      </blockquote>
+
+      <h2>Pourquoi s'entraîner avec un Directeur commercial IA ?</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <ul>
+        <li><strong>Permet de tester vos arguments</strong> et votre discours dans un environnement sûr.</li>
+        <li><strong>Développe la capacité à identifier les objections</strong> et y répondre efficacement.</li>
+        <li><strong>Utile pour les formateurs et organismes de formation</strong> qui souhaitent enrichir leurs modules sur la <strong>prospection B2B</strong>.</li>
+        <li><strong>Idéal pour les indépendants ou commerciaux</strong> souhaitant progresser avant d'appeler de vrais décideurs.</li>
+      </ul>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>5 conseils pour convaincre un décideur exigeant</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <h3>1. Préparez un pitch clair et impactant</h3>
+      <ul>
+        <li>Soyez capable de résumer votre proposition en 30 secondes maximum.</li>
+        <li>Montrez que vous comprenez le business et les enjeux du directeur.</li>
+      </ul>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <h3>2. Anticipez les objections</h3>
+      <ul>
+        <li>Exemples : "Nous avons déjà un fournisseur", "Nous n'avons pas le budget", "Pas le moment pour un changement".</li>
+        <li>Préparez des réponses concrètes et orientées valeur.</li>
+      </ul>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <h3>3. Adoptez un ton professionnel et confiant</h3>
+      <ul>
+        <li>Les décideurs apprécient la clarté et la pertinence.</li>
+        <li>Ne tentez pas d'impressionner par des phrases longues ou techniques.</li>
+      </ul>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <h3>4. Posez des questions pertinentes</h3>
+      <p>Exemple :</p>
+      <ul>
+        <li>"Quels sont vos principaux enjeux cette année ?"</li>
+        <li>"Comment évaluez-vous l'efficacité de vos solutions actuelles ?"</li>
+      </ul>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <h3>5. Entraînez-vous régulièrement</h3>
+      <ul>
+        <li>La répétition permet de réduire le stress et d'améliorer la fluidité.</li>
+        <li><strong>Ring Academy</strong> vous permet de simuler des appels avec Thomas Durand, afin de perfectionner vos arguments et votre rythme.</li>
+      </ul>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>Conclusion</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <p>Convaincre un décideur demande préparation, pertinence et confiance. Avec <strong>Ring Academy</strong>, vous pouvez vous <strong>entraîner sur un prospect exigeant</strong>, développer vos compétences et améliorer vos chances de succès dans la <strong>prospection B2B</strong>.</p>
+    `
+  },
+  {
     id: '2',
     slug: 'passer-barrage-secretaire-prospection-telephonique',
     title: 'Passer le barrage de la secrétaire en prospection téléphonique',

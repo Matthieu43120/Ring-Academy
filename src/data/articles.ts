@@ -23,7 +23,7 @@ export const articles: Article[] = [
     metaDescription: 'Découvrez comment vous entraîner efficacement à la prospection téléphonique avec Thomas Durand, Directeur commercial IA. Améliorez votre pitch et vos techniques de vente pour convaincre les décideurs exigeants.',
     excerpt: 'Dans la prospection B2B, atteindre un décideur exigeant est souvent un défi majeur. Ces derniers reçoivent de nombreux appels chaque semaine et savent immédiatement repérer un pitch faible ou mal préparé.',
     author: 'Équipe Ring Academy',
-    publishedAt: '2025-10-16',
+    publishedAt: '2025-10-23',
     category: 'Prospection',
     readTime: '7 min',
     keywords: [

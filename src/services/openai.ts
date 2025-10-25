@@ -342,95 +342,38 @@ export async function analyzeCall(
   recommendations: string[];
   detailedFeedback: string;
   improvements: string[];
-  criteriaScores?: {
-    accroche: number;
-    ecoute: number;
-    objections: number;
-    clarte: number;
-    conclusion: number;
-  };
-  recurrentErrors?: string[];
-  mainObjective?: string;
 }> {
   try {
     console.log('🔍 Analyse de l\'appel en cours...');
-
+    
     // Préparer les messages pour l'analyse
     const analysisMessages = [
       {
         role: 'system' as const,
-        content: `Tu es un coach expert en prospection téléphonique B2B, spécialisé dans la **prise de rendez-vous qualifiés**.
-Ton rôle est d'analyser la conversation ci-dessous entre un commercial et un prospect, afin de produire une évaluation complète, pédagogique et exploitable pour le suivi de progression sur plusieurs appels.
-
-L'objectif principal de l'appel est **d'obtenir un rendez-vous**. Tes retours doivent donc toujours être orientés vers cet objectif.
-
----
-
-### 🎯 CRITÈRES D'ÉVALUATION (pondérés pour le score global)
-1. **Accroche et mise en confiance** (20%)
-   - Clarté de la présentation, tonalité, crédibilité du début d'appel.
-2. **Capacité d'écoute et de reformulation** (20%)
-   - Détection des besoins, reformulation pertinente, prise en compte du discours du prospect.
-3. **Gestion des objections** (25%)
-   - Calme, empathie, pertinence des réponses aux objections.
-4. **Clarté et structure du discours** (15%)
-   - Fluidité, cohérence, capacité à garder le fil de la discussion.
-5. **Conclusion et capacité à obtenir un engagement concret** (20%)
-   - Capacité à conclure efficacement et à obtenir le rendez-vous.
-
----
-
-### 📊 OBJECTIF DU RAPPORT
-Tu dois fournir une analyse exploitable pour un tableau de bord pédagogique.
-Elle servira à suivre l'évolution de l'apprenant sur plusieurs appels, à détecter ses points faibles récurrents et à proposer des axes d'amélioration concrets.
-
----
-
-### 🧾 FORMAT DE RÉPONSE (JSON STRICT)
-Donne uniquement un JSON valide avec les clés suivantes :
-
-{
-  "score": nombre entre 0 et 100,
-  "criteriaScores": {
-    "accroche": nombre entre 0 et 100,
-    "ecoute": nombre entre 0 et 100,
-    "objections": nombre entre 0 et 100,
-    "clarte": nombre entre 0 et 100,
-    "conclusion": nombre entre 0 et 100
-  },
-  "strengths": [
-    "Phrase ou point fort concret basé sur la performance réelle"
-  ],
-  "improvements": [
-    "Point faible concret à travailler, identifiable sur plusieurs sessions potentielles"
-  ],
-  "recurrentErrors": [
-    "Erreur récurrente détectée ou suspectée à partir du comportement observé (même si c'est la première fois)"
-  ],
-  "recommendations": [
-    "Conseils pratiques à appliquer dès le prochain appel pour progresser sur la prise de rendez-vous"
-  ],
-  "detailedFeedback": "Analyse complète, cohérente et motivante, expliquant pourquoi le score a été attribué et comment progresser.",
-  "mainObjective": "Évaluation centrée sur la capacité à obtenir un rendez-vous et à surmonter les objections."
-}
-
----
-
-### 🧠 CONSIGNES SUPPLÉMENTAIRES
-- Sois précis, concret et orienté apprentissage (évite les phrases vagues).
-- Ne te contente pas de décrire la performance : aide l'utilisateur à progresser.
-- Si le commercial a bien géré un point précédemment faible (écoute, objections, etc.), mentionne-le explicitement.
-- Adapte ton ton : bienveillant mais professionnel, comme un coach de vente expérimenté.
-- Garde toujours en tête : ton analyse alimente un **tableau de bord d'évolution** et doit être exploitable dans le temps.`
+        content: `Tu es un expert en prospection téléphonique. Analyse cette conversation et fournis un rapport détaillé.
+        
+        Critères d'évaluation :
+        - Qualité de l'approche et de l'accroche
+        - Gestion des objections
+        - Capacité d'écoute et d'adaptation
+        - Clarté du discours
+        - Atteinte de l'objectif (prise de rendez-vous)
+        
+        Fournis une réponse JSON avec :
+        - score (sur 100)
+        - strengths (array de points forts)
+        - recommendations (array de recommandations)
+        - detailedFeedback (analyse détaillée)
+        - improvements (array d'axes d'amélioration)`
       },
       {
         role: 'user' as const,
         content: `Analyse cette conversation de prospection :
-
+        
         Cible : ${target}
         Difficulté : ${difficulty}
         Durée : ${Math.round(duration / 1000)}s
-
+        
         Conversation :
         ${conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}`
       }

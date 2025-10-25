@@ -20,6 +20,15 @@ export interface SessionResult {
   duration: number;
   detailedAnalysis?: string;
   improvements?: string[];
+  criteriaScores?: {
+    accroche: number;
+    ecoute: number;
+    objections: number;
+    clarte: number;
+    conclusion: number;
+  };
+  recurrentErrors?: string[];
+  mainObjective?: string;
 }
 
 function Training() {

@@ -218,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Fetch user sessions
       console.log('⏳ loadUserData: Tentative de récupération des sessions utilisateur...');
       const { data: userSessions, error: sessionsError } = await fetchWithTimeout(
-        supabase.from('sessions').select('*').eq('user_id', supabaseUser.id).order('created_at', { ascending: false }),
+        supabase.from('training_sessions').select('*').eq('user_id', supabaseUser.id).order('created_at', { ascending: false }),
         10000 // 10 seconds timeout
       );
 
@@ -515,7 +515,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('💾 SAVE_SESSION: Sauvegarde de la session...');
     
     try {
-      const { error } = await supabase.from('sessions').insert({
+      const { error } = await supabase.from('training_sessions').insert({
         user_id: user.id,
         target: config.target,
         difficulty: config.difficulty,
@@ -525,6 +525,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         recommendations: result.recommendations,
         improvements: result.improvements || [],
         detailed_analysis: result.detailedAnalysis,
+        criteria_scores: result.criteriaScores || null,
+        recurrent_errors: result.recurrentErrors || null,
+        main_objective: result.mainObjective || null,
       });
 
       if (error) {
@@ -795,7 +798,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Then, fetch all sessions for these member IDs
       const { data: orgSessionsData, error: sessionsError } = await supabase
-        .from('sessions')
+        .from('training_sessions')
         .select('*')
         .in('user_id', memberIds)
         .order('created_at', { ascending: false });

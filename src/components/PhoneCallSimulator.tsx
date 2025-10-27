@@ -420,24 +420,54 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
       const fallbackResult: SessionResult = {
         score: fallbackScore,
         feedback: fallbackScore > 30 ? [
-          'Tu as participé à la conversation',
-          'Effort de communication visible'
-        ] : [],
+          'Tu as participé à la conversation et montré de l\'engagement',
+          'Effort de communication visible tout au long de l\'échange',
+          'Tentative d\'interaction avec le prospect'
+        ] : [
+          'Participation minimale observée',
+          'Présence dans la simulation'
+        ],
         recommendations: [
-          'Prépare une accroche de 30 secondes',
-          'Structure ton discours commercial',
-          'Entraîne-toi quotidiennement'
+          'Prépare une accroche percutante de 30 secondes avant chaque appel',
+          'Structure ton discours commercial avec une trame claire (intro, découverte, proposition, conclusion)',
+          'Entraîne-toi quotidiennement 15 minutes pour automatiser les réflexes commerciaux'
         ],
         duration: finalDuration,
-        detailedAnalysis: `Performance ${fallbackScore < 30 ? 'très insuffisante' : fallbackScore < 50 ? 'insuffisante' : 'correcte'}. ${fallbackScore < 30 ? 'Il faut au minimum te présenter et expliquer l\'objet de l\'appel.' : 'Continue à t\'entraîner pour améliorer ta technique commerciale.'}`,
+        detailedAnalysis: {
+          accroche_mise_en_confiance: {
+            score: fallbackScore,
+            commentaire: fallbackScore < 30 ? 'Accroche absente ou très insuffisante. Il est essentiel de se présenter clairement.' : 'Accroche présente mais nécessite plus de travail pour être percutante.'
+          },
+          ecoute_adaptation: {
+            score: fallbackScore,
+            commentaire: fallbackScore < 30 ? 'Pas d\'écoute active observable dans cet échange.' : 'Quelques signes d\'adaptation mais à renforcer.'
+          },
+          gestion_objections: {
+            score: fallbackScore,
+            commentaire: fallbackScore < 30 ? 'Aucune objection traitée dans cet appel.' : 'Traitement des objections à améliorer significativement.'
+          },
+          clarte_structure: {
+            score: fallbackScore,
+            commentaire: fallbackScore < 30 ? 'Structure commerciale inexistante ou très confuse.' : 'Structure présente mais manque de fluidité et de cohérence.'
+          },
+          conclusion_engagement: {
+            score: fallbackScore,
+            commentaire: fallbackScore < 30 ? 'Aucune tentative de conclusion ou de prise de rendez-vous.' : 'Conclusion faible, manque d\'engagement pour obtenir le rendez-vous.'
+          },
+          analyse_generale: fallbackScore < 30
+            ? 'Performance très insuffisante pour un appel de prospection B2B. Il est impératif de travailler les fondamentaux : se présenter clairement, expliquer l\'objet de l\'appel, poser des questions de qualification et proposer un rendez-vous. Un appel de prospection doit durer au minimum 1 à 2 minutes pour être considéré comme complet. Prenez le temps de préparer votre discours et de vous entraîner régulièrement.'
+            : fallbackScore < 50
+              ? 'Performance insuffisante mais des bases sont présentes. Vous avez tenté d\'engager la conversation, ce qui est positif. Concentrez-vous maintenant sur la structure de votre discours commercial, la gestion des objections et surtout sur la conclusion avec proposition de rendez-vous. Continuez à vous entraîner pour gagner en aisance et en confiance.'
+              : 'Performance correcte avec une marge de progression intéressante. Vous avez montré de bonnes bases en prospection téléphonique. Pour passer au niveau supérieur, travaillez sur la personnalisation de votre discours, l\'écoute active et la gestion fine des objections. Continuez à pratiquer régulièrement pour automatiser ces compétences.'
+        },
         improvements: fallbackScore < 40 ? [
-          'Conversation trop courte',
-          'Manque de structure commerciale',
-          'Pas assez d\'engagement'
+          'Conversation beaucoup trop courte pour être efficace en prospection B2B',
+          'Manque total de structure commerciale (présentation, découverte, proposition)',
+          'Engagement insuffisant et absence de tentative de prise de rendez-vous'
         ] : [
-          'Gestion des objections',
-          'Techniques de questionnement',
-          'Closing commercial'
+          'Améliorer significativement la gestion des objections avec des techniques d\'empathie et de rebond',
+          'Développer les techniques de questionnement pour qualifier efficacement le prospect',
+          'Renforcer le closing commercial en proposant systématiquement 2 créneaux de rendez-vous'
         ]
       };
 

@@ -18,7 +18,7 @@ export interface SessionResult {
   feedback: string[];
   recommendations: string[];
   duration: number;
-  detailedAnalysis?: string;
+  detailedAnalysis?: any;
   improvements?: string[];
 }
 

@@ -62,11 +62,13 @@ function Dashboard() {
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
   const [orgCreated, setOrgCreated] = useState(false);
   const [currentView, setCurrentView] = useState<'personal' | 'organization'>('personal');
+  const [organizationView, setOrganizationView] = useState<'members' | 'overview'>('members');
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [selectedSessionDetail, setSelectedSessionDetail] = useState<any | null>(null);
   const [showPersonalSessions, setShowPersonalSessions] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [memberSelectedDifficulty, setMemberSelectedDifficulty] = useState<string>('all');
+  const [orgOverviewDifficulty, setOrgOverviewDifficulty] = useState<string>('all');
 
   // NOUVEAUX ÉTATS pour les données de l'organisation
   const [orgMembersState, setOrgMembersState] = useState<UserProfile[]>([]);
@@ -78,6 +80,23 @@ function Dashboard() {
   const personalAnalytics = React.useMemo(() => {
     return analyzeUserSessions(sessions, selectedDifficulty);
   }, [sessions, selectedDifficulty]);
+
+  // Analytics agrégés pour toute l'organisation
+  const organizationAnalytics = React.useMemo(() => {
+    if (organizationView === 'overview' && orgSessionsState.length > 0) {
+      return analyzeUserSessions(orgSessionsState, orgOverviewDifficulty);
+    }
+    return {
+      totalSessions: 0,
+      averageScore: 0,
+      bestScore: 0,
+      progressionTrend: { current: 0, previous: 0, trend: 'stable' as const, percentage: 0 },
+      recurringImprovements: [],
+      recurringStrengths: [],
+      topRecommendation: "Pas encore de données disponibles.",
+      hasEnoughData: false
+    };
+  }, [organizationView, orgSessionsState, orgOverviewDifficulty]);
 
   // NOUVEAU useEffect pour charger les données de l'organisation
   React.useEffect(() => {
@@ -780,8 +799,38 @@ function Dashboard() {
             {/* Vue organisation */}
             {organization && orgStats && (
               <>
-                {/* Stats organisation */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                {/* Navigation entre vue membres et vue d'ensemble */}
+                <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4 mb-8">
+                  <div className="flex items-center justify-center space-x-4">
+                    <button
+                      onClick={() => setOrganizationView('members')}
+                      className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                        organizationView === 'members'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Users className="h-5 w-5" />
+                      <span>Vue Membres</span>
+                    </button>
+                    <button
+                      onClick={() => setOrganizationView('overview')}
+                      className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                        organizationView === 'overview'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      <BarChart3 className="h-5 w-5" />
+                      <span>Vue d'ensemble</span>
+                    </button>
+                  </div>
+                </div>
+
+                {organizationView === 'members' ? (
+                  <>
+                    {/* Stats organisation */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                   <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
                     <div className="flex items-center space-x-4">
                       <div className="bg-blue-100 p-3 rounded-lg">
@@ -1116,6 +1165,73 @@ function Dashboard() {
                     </div>
                   )}
                 </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Vue d'ensemble de l'organisation */}
+                    <div className="space-y-8">
+                      {/* Stats globales de l'organisation */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                          <div className="flex items-center space-x-4">
+                            <div className="bg-blue-100 p-3 rounded-lg">
+                              <Users className="h-6 w-6 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-600">Membres actifs</p>
+                              <p className="text-2xl font-bold text-gray-900">{orgStats.totalMembers}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                          <div className="flex items-center space-x-4">
+                            <div className="bg-green-100 p-3 rounded-lg">
+                              <BarChart3 className="h-6 w-6 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-600">Sessions totales</p>
+                              <p className="text-2xl font-bold text-gray-900">{organizationAnalytics.totalSessions}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                          <div className="flex items-center space-x-4">
+                            <div className="bg-purple-100 p-3 rounded-lg">
+                              <Award className="h-6 w-6 text-purple-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-600">Score moyen global</p>
+                              <p className="text-2xl font-bold text-gray-900">{organizationAnalytics.averageScore}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                          <div className="flex items-center space-x-4">
+                            <div className="bg-yellow-100 p-3 rounded-lg">
+                              <TrendingUp className="h-6 w-6 text-yellow-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-600">Meilleur score</p>
+                              <p className="text-2xl font-bold text-gray-900">{organizationAnalytics.bestScore}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Insights détaillés de l'organisation */}
+                      <div className="mb-8">
+                        <DashboardInsights
+                          analytics={organizationAnalytics}
+                          selectedDifficulty={orgOverviewDifficulty}
+                          onDifficultyChange={setOrgOverviewDifficulty}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </>

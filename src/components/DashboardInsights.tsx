@@ -15,13 +15,13 @@ function DashboardInsights({ analytics, selectedDifficulty, onDifficultyChange }
     } else if (analytics.progressionTrend.trend === 'down') {
       return <TrendingDown className="h-8 w-8 text-red-600" />;
     }
-    return <Minus className="h-8 w-8 text-gray-600" />;
+    return <Minus className="h-8 w-8 text-blue-600" />;
   };
 
   const getTrendColor = () => {
     if (analytics.progressionTrend.trend === 'up') return 'from-green-500 to-green-600';
     if (analytics.progressionTrend.trend === 'down') return 'from-red-500 to-red-600';
-    return 'from-gray-500 to-gray-600';
+    return 'from-blue-500 to-blue-600';
   };
 
   const getTrendText = () => {

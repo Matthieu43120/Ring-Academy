@@ -116,25 +116,94 @@ function getTopRecommendation(sessions: SessionRecord[]): string {
     return "Commencez par effectuer des simulations pour obtenir des recommandations personnalisées.";
   }
 
-  const allRecommendations = recentSessions
-    .flatMap(s => s.recommendations)
+  // Calculer le score moyen récent
+  const avgScore = recentSessions.reduce((sum, s) => sum + s.score, 0) / recentSessions.length;
+
+  // Analyser les axes d'amélioration récurrents
+  const allImprovements = recentSessions
+    .flatMap(s => s.improvements || [])
     .filter(Boolean);
 
-  if (allRecommendations.length === 0) {
-    return "Continuez à pratiquer régulièrement pour identifier vos axes de progression.";
-  }
-
-  const recommendationCount = new Map<string, number>();
-  allRecommendations.forEach(rec => {
-    const normalized = rec.toLowerCase().trim();
-    recommendationCount.set(normalized, (recommendationCount.get(normalized) || 0) + 1);
+  const improvementCount = new Map<string, number>();
+  allImprovements.forEach(imp => {
+    const normalized = imp.toLowerCase().trim();
+    improvementCount.set(normalized, (improvementCount.get(normalized) || 0) + 1);
   });
 
-  const topRec = Array.from(recommendationCount.entries())
-    .sort((a, b) => b[1] - a[1])[0];
+  // Trouver les 2 axes d'amélioration les plus fréquents
+  const topImprovements = Array.from(improvementCount.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([item]) => {
+      const original = allImprovements.find(i => i.toLowerCase().trim() === item);
+      return original || item;
+    });
 
-  const original = allRecommendations.find(r => r.toLowerCase().trim() === topRec[0]);
-  return original || topRec[0];
+  // Analyser les détails des 3 dernières sessions
+  const last3 = getLastNSessions(sessions, 3);
+  const criteriaScores: { [key: string]: number[] } = {
+    accroche: [],
+    ecoute: [],
+    objections: [],
+    clarte: [],
+    conclusion: []
+  };
+
+  last3.forEach(session => {
+    const analysis = parseDetailedAnalysis(session.detailedAnalysis);
+    if (analysis) {
+      if (analysis.accroche_mise_en_confiance) criteriaScores.accroche.push(analysis.accroche_mise_en_confiance.score);
+      if (analysis.ecoute_adaptation) criteriaScores.ecoute.push(analysis.ecoute_adaptation.score);
+      if (analysis.gestion_objections) criteriaScores.objections.push(analysis.gestion_objections.score);
+      if (analysis.clarte_structure) criteriaScores.clarte.push(analysis.clarte_structure.score);
+      if (analysis.conclusion_engagement) criteriaScores.conclusion.push(analysis.conclusion_engagement.score);
+    }
+  });
+
+  // Trouver le critère le plus faible
+  let weakestCriteria = '';
+  let weakestScore = 100;
+  const criteriaNames: { [key: string]: string } = {
+    accroche: 'votre accroche et mise en confiance',
+    ecoute: 'votre capacité d\'écoute et d\'adaptation',
+    objections: 'votre gestion des objections',
+    clarte: 'la clarté de votre discours',
+    conclusion: 'votre conclusion et engagement'
+  };
+
+  Object.entries(criteriaScores).forEach(([key, scores]) => {
+    if (scores.length > 0) {
+      const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+      if (avg < weakestScore) {
+        weakestScore = avg;
+        weakestCriteria = criteriaNames[key];
+      }
+    }
+  });
+
+  // Générer une recommandation intelligente basée sur les données
+  if (avgScore >= 80) {
+    if (weakestCriteria && weakestScore < 85) {
+      return `Excellente performance globale ! Pour atteindre l'excellence, concentrez-vous sur ${weakestCriteria} qui reste votre point d'amélioration principal.`;
+    }
+    return "Performance exceptionnelle ! Maintenez votre niveau en continuant à pratiquer régulièrement, et challengez-vous avec des niveaux de difficulté plus élevés.";
+  } else if (avgScore >= 60) {
+    if (weakestCriteria) {
+      return `Bonne progression ! Votre priorité : travailler ${weakestCriteria}. ${topImprovements.length > 0 ? 'Focus également sur : ' + topImprovements[0].toLowerCase() + '.' : ''}`;
+    }
+    if (topImprovements.length > 0) {
+      return `Bonne progression ! Concentrez-vous en priorité sur : ${topImprovements[0].toLowerCase()}${topImprovements.length > 1 ? ', puis ' + topImprovements[1].toLowerCase() : ''}.`;
+    }
+    return "Performance correcte. Continuez à vous entraîner quotidiennement pour automatiser vos réflexes commerciaux et gagner en aisance.";
+  } else {
+    if (weakestCriteria) {
+      return `Point d'attention urgent : ${weakestCriteria}. ${topImprovements.length > 0 ? 'Travaillez également sur : ' + topImprovements[0].toLowerCase() : 'Pratiquez régulièrement pour progresser.'}.`;
+    }
+    if (topImprovements.length > 0) {
+      return `Axes prioritaires à travailler : ${topImprovements[0].toLowerCase()}${topImprovements.length > 1 ? ' et ' + topImprovements[1].toLowerCase() : ''}. Pratiquez quotidiennement pour voir des progrès rapides.`;
+    }
+    return "Continuez à vous entraîner ! La pratique régulière est la clé pour améliorer rapidement votre technique de prospection téléphonique.";
+  }
 }
 
 export function analyzeUserSessions(sessions: SessionRecord[], difficulty: string = 'all'): SessionAnalytics {

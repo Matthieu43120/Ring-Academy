@@ -98,9 +98,153 @@ function SessionSummary({ result, onRestart, isAuthenticated = false }: SessionS
               </div>
               <span>Analyse détaillée</span>
             </h2>
-            <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-              <p className="text-gray-800 leading-relaxed text-lg">{result.detailedAnalysis}</p>
-            </div>
+
+            {/* Check if detailedAnalysis is an object with criteria scores */}
+            {typeof result.detailedAnalysis === 'object' && result.detailedAnalysis.accroche_mise_en_confiance ? (
+              <div className="space-y-6">
+                {/* Criterion 1: Accroche et mise en confiance */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-bold text-blue-900">Accroche et mise en confiance</h3>
+                    <div className={`px-4 py-2 rounded-full font-bold text-lg ${
+                      result.detailedAnalysis.accroche_mise_en_confiance.score >= 80 ? 'bg-green-500 text-white' :
+                      result.detailedAnalysis.accroche_mise_en_confiance.score >= 60 ? 'bg-yellow-500 text-white' :
+                      'bg-red-500 text-white'
+                    }`}>
+                      {result.detailedAnalysis.accroche_mise_en_confiance.score}/100
+                    </div>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-2 mb-4">
+                    <div
+                      className={`h-2 rounded-full ${
+                        result.detailedAnalysis.accroche_mise_en_confiance.score >= 80 ? 'bg-green-500' :
+                        result.detailedAnalysis.accroche_mise_en_confiance.score >= 60 ? 'bg-yellow-500' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${result.detailedAnalysis.accroche_mise_en_confiance.score}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">{result.detailedAnalysis.accroche_mise_en_confiance.commentaire}</p>
+                </div>
+
+                {/* Criterion 2: Écoute et adaptation */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-bold text-purple-900">Capacité d'écoute et adaptation</h3>
+                    <div className={`px-4 py-2 rounded-full font-bold text-lg ${
+                      result.detailedAnalysis.ecoute_adaptation.score >= 80 ? 'bg-green-500 text-white' :
+                      result.detailedAnalysis.ecoute_adaptation.score >= 60 ? 'bg-yellow-500 text-white' :
+                      'bg-red-500 text-white'
+                    }`}>
+                      {result.detailedAnalysis.ecoute_adaptation.score}/100
+                    </div>
+                  </div>
+                  <div className="w-full bg-purple-200 rounded-full h-2 mb-4">
+                    <div
+                      className={`h-2 rounded-full ${
+                        result.detailedAnalysis.ecoute_adaptation.score >= 80 ? 'bg-green-500' :
+                        result.detailedAnalysis.ecoute_adaptation.score >= 60 ? 'bg-yellow-500' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${result.detailedAnalysis.ecoute_adaptation.score}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">{result.detailedAnalysis.ecoute_adaptation.commentaire}</p>
+                </div>
+
+                {/* Criterion 3: Gestion des objections */}
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-bold text-orange-900">Gestion des objections</h3>
+                    <div className={`px-4 py-2 rounded-full font-bold text-lg ${
+                      result.detailedAnalysis.gestion_objections.score >= 80 ? 'bg-green-500 text-white' :
+                      result.detailedAnalysis.gestion_objections.score >= 60 ? 'bg-yellow-500 text-white' :
+                      'bg-red-500 text-white'
+                    }`}>
+                      {result.detailedAnalysis.gestion_objections.score}/100
+                    </div>
+                  </div>
+                  <div className="w-full bg-orange-200 rounded-full h-2 mb-4">
+                    <div
+                      className={`h-2 rounded-full ${
+                        result.detailedAnalysis.gestion_objections.score >= 80 ? 'bg-green-500' :
+                        result.detailedAnalysis.gestion_objections.score >= 60 ? 'bg-yellow-500' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${result.detailedAnalysis.gestion_objections.score}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">{result.detailedAnalysis.gestion_objections.commentaire}</p>
+                </div>
+
+                {/* Criterion 4: Clarté et structure */}
+                <div className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl p-6 border border-teal-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-bold text-teal-900">Clarté du discours et structure</h3>
+                    <div className={`px-4 py-2 rounded-full font-bold text-lg ${
+                      result.detailedAnalysis.clarte_structure.score >= 80 ? 'bg-green-500 text-white' :
+                      result.detailedAnalysis.clarte_structure.score >= 60 ? 'bg-yellow-500 text-white' :
+                      'bg-red-500 text-white'
+                    }`}>
+                      {result.detailedAnalysis.clarte_structure.score}/100
+                    </div>
+                  </div>
+                  <div className="w-full bg-teal-200 rounded-full h-2 mb-4">
+                    <div
+                      className={`h-2 rounded-full ${
+                        result.detailedAnalysis.clarte_structure.score >= 80 ? 'bg-green-500' :
+                        result.detailedAnalysis.clarte_structure.score >= 60 ? 'bg-yellow-500' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${result.detailedAnalysis.clarte_structure.score}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">{result.detailedAnalysis.clarte_structure.commentaire}</p>
+                </div>
+
+                {/* Criterion 5: Conclusion et engagement */}
+                <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-6 border border-pink-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-bold text-pink-900">Conclusion et engagement</h3>
+                    <div className={`px-4 py-2 rounded-full font-bold text-lg ${
+                      result.detailedAnalysis.conclusion_engagement.score >= 80 ? 'bg-green-500 text-white' :
+                      result.detailedAnalysis.conclusion_engagement.score >= 60 ? 'bg-yellow-500 text-white' :
+                      'bg-red-500 text-white'
+                    }`}>
+                      {result.detailedAnalysis.conclusion_engagement.score}/100
+                    </div>
+                  </div>
+                  <div className="w-full bg-pink-200 rounded-full h-2 mb-4">
+                    <div
+                      className={`h-2 rounded-full ${
+                        result.detailedAnalysis.conclusion_engagement.score >= 80 ? 'bg-green-500' :
+                        result.detailedAnalysis.conclusion_engagement.score >= 60 ? 'bg-yellow-500' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${result.detailedAnalysis.conclusion_engagement.score}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">{result.detailedAnalysis.conclusion_engagement.commentaire}</p>
+                </div>
+
+                {/* General analysis */}
+                {result.detailedAnalysis.analyse_generale && (
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border-2 border-gray-300">
+                    <h3 className="text-lg font-bold text-gray-900 mb-3">Analyse générale</h3>
+                    <p className="text-gray-800 leading-relaxed text-base">{result.detailedAnalysis.analyse_generale}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Fallback for simple string format */
+              <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                <p className="text-gray-800 leading-relaxed text-lg">
+                  {typeof result.detailedAnalysis === 'string'
+                    ? result.detailedAnalysis
+                    : 'Analyse détaillée non disponible.'}
+                </p>
+              </div>
+            )}
           </div>
         )}
 

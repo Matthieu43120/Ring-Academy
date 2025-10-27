@@ -424,7 +424,7 @@ Tu dois OBLIGATOIREMENT répondre dans ce format JSON exact, sans texte ni comme
       "score": <nombre entre 0 et 100>,
       "commentaire": "<Analyse synthétique avec 1-2 exemples précis tirés de la conversation>"
     },
-    "analyse_generale": "<Texte détaillé de 4-6 phrases mettant en évidence les tendances observées, la progression par rapport aux standards de la prospection B2B, et les leviers de croissance prioritaires. Ton bienveillant et motivant de coach expérimenté.>"
+    "analyse_generale": "<Texte rédigé en français naturel, de 4-6 phrases, mettant en évidence les tendances observées, la progression par rapport aux standards de la prospection B2B, et les leviers de croissance prioritaires. Ton bienveillant et motivant de coach expérimenté. IMPORTANT: Ce champ doit contenir UNIQUEMENT du texte français naturel, PAS de JSON, PAS de structure de données, PAS de guillemets ou crochets.>"
   }
 }
 
@@ -435,7 +435,8 @@ CONSIGNES SUPPLÉMENTAIRES
 - Chaque sous-score doit refléter la qualité réelle du comportement observé dans cet appel
 - Le score global est la moyenne arithmétique des 5 sous-scores
 - Le JSON doit être propre, parfaitement formaté, sans texte avant ou après
-- IMPORTANT : Retourne UNIQUEMENT le JSON, sans aucun texte d'introduction ou de conclusion`
+- IMPORTANT : Retourne UNIQUEMENT le JSON, sans aucun texte d'introduction ou de conclusion
+- CRITIQUE : Le champ "analyse_generale" doit être un TEXTE SIMPLE en français, JAMAIS un JSON stringifié ou une structure de données. Écris directement le texte du coach comme si tu parlais à l'apprenant.`
       },
       {
         role: 'user' as const,

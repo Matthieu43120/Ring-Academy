@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Clock, TrendingUp, RotateCcw, Home, Trophy, AlertCircle, Play, Target, Award, CheckCircle, XCircle } from 'lucide-react';
 import { SessionResult } from '../pages/Training';
+import { cleanAnalyseGenerale } from '../utils/analysisParser';
 
 interface SessionSummaryProps {
   result: SessionResult;
@@ -230,8 +231,44 @@ function SessionSummary({ result, onRestart, isAuthenticated = false }: SessionS
                 {/* General analysis */}
                 {result.detailedAnalysis.analyse_generale && (
                   <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border-2 border-gray-300">
-                    <h3 className="text-lg font-bold text-gray-900 mb-3">Analyse générale</h3>
-                    <p className="text-gray-800 leading-relaxed text-base">{result.detailedAnalysis.analyse_generale}</p>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Analyse générale</h3>
+                    <div className="text-gray-800 leading-relaxed text-base space-y-3">
+                      {cleanAnalyseGenerale(result.detailedAnalysis.analyse_generale).split('\n\n').map((paragraph, index) => {
+                        const lines = paragraph.split('\n');
+                        const hasListItems = lines.some(line => line.trim().startsWith('•') || line.trim().startsWith('-'));
+
+                        if (hasListItems) {
+                          return (
+                            <div key={index} className="mb-3">
+                              {lines.map((line, lineIndex) => {
+                                const trimmed = line.trim();
+                                if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+                                  return (
+                                    <div key={lineIndex} className="flex items-start space-x-2 mb-2 ml-4">
+                                      <span className="text-blue-600 font-bold mt-1">•</span>
+                                      <span className="flex-1">{trimmed.substring(1).trim()}</span>
+                                    </div>
+                                  );
+                                } else if (trimmed) {
+                                  return (
+                                    <div key={lineIndex} className="font-semibold text-gray-900 mb-2">
+                                      {trimmed}
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })}
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <p key={index} className="mb-3">
+                              {paragraph}
+                            </p>
+                          );
+                        }
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

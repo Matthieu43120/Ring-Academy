@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  Users, 
-  TrendingUp, 
-  Clock, 
-  Award, 
-  BarChart3, 
-  Play, 
+import {
+  Users,
+  TrendingUp,
+  Clock,
+  Award,
+  BarChart3,
+  Play,
   CreditCard,
   Plus,
   Building,
@@ -24,6 +24,8 @@ import {
   Loader2,
   ChevronDown
 } from 'lucide-react';
+import DashboardInsights from '../components/DashboardInsights';
+import { analyzeUserSessions } from '../services/sessionAnalytics';
 
 // Définir les interfaces pour les données de l'organisation
 interface UserProfile {
@@ -62,6 +64,8 @@ function Dashboard() {
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [selectedSessionDetail, setSelectedSessionDetail] = useState<any | null>(null);
   const [showPersonalSessions, setShowPersonalSessions] = useState(false);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+  const [memberSelectedDifficulty, setMemberSelectedDifficulty] = useState<string>('all');
 
   // NOUVEAUX ÉTATS pour les données de l'organisation
   const [orgMembersState, setOrgMembersState] = useState<UserProfile[]>([]);
@@ -69,6 +73,10 @@ function Dashboard() {
   const [isOrgDataLoading, setIsOrgDataLoading] = useState(false);
 
   const creditsInfo = getCreditsInfo();
+
+  const personalAnalytics = React.useMemo(() => {
+    return analyzeUserSessions(sessions, selectedDifficulty);
+  }, [sessions, selectedDifficulty]);
 
   // NOUVEAU useEffect pour charger les données de l'organisation
   React.useEffect(() => {
@@ -580,6 +588,15 @@ function Dashboard() {
               </div>
             </div>
 
+            {/* Insights et analyses */}
+            <div className="mb-8">
+              <DashboardInsights
+                analytics={personalAnalytics}
+                selectedDifficulty={selectedDifficulty}
+                onDifficultyChange={setSelectedDifficulty}
+              />
+            </div>
+
             {/* Historique des sessions personnelles */}
             <div className="bg-white rounded-xl shadow-lg border border-gray-200">
               <div className="p-6 border-b border-gray-200">
@@ -849,6 +866,15 @@ function Dashboard() {
                                   </div>
                                 </div>
                               </div>
+                            </div>
+
+                            {/* Insights du membre */}
+                            <div className="mb-6">
+                              <DashboardInsights
+                                analytics={analyzeUserSessions(memberSessions, memberSelectedDifficulty)}
+                                selectedDifficulty={memberSelectedDifficulty}
+                                onDifficultyChange={setMemberSelectedDifficulty}
+                              />
                             </div>
 
                             {/* Historique des sessions du membre */}

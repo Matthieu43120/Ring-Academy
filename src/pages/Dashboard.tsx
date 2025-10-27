@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import DashboardInsights from '../components/DashboardInsights';
 import { analyzeUserSessions } from '../services/sessionAnalytics';
+import { cleanAnalyseGenerale } from '../utils/analysisParser';
 
 // Définir les interfaces pour les données de l'organisation
 interface UserProfile {
@@ -183,6 +184,36 @@ function Dashboard() {
     setSelectedSessionDetail(null);
   };
 
+  // Helper function to extract and format the general analysis
+  const getGeneralAnalysis = (detailedAnalysis: any): string => {
+    if (!detailedAnalysis) {
+      return 'Analyse non disponible pour cette session.';
+    }
+
+    // If it's already a string, try to parse it
+    if (typeof detailedAnalysis === 'string') {
+      try {
+        const parsed = JSON.parse(detailedAnalysis);
+        if (parsed.analyse_generale) {
+          return cleanAnalyseGenerale(parsed.analyse_generale);
+        }
+        // If it's a string without JSON structure, return it directly
+        return cleanAnalyseGenerale(detailedAnalysis);
+      } catch (e) {
+        // Not JSON, return as is (cleaned)
+        return cleanAnalyseGenerale(detailedAnalysis);
+      }
+    }
+
+    // If it's an object with analyse_generale
+    if (typeof detailedAnalysis === 'object' && detailedAnalysis.analyse_generale) {
+      return cleanAnalyseGenerale(detailedAnalysis.analyse_generale);
+    }
+
+    // Fallback: try to extract something meaningful
+    return 'Analyse détaillée disponible.';
+  };
+
   // Gestion de l'état de chargement
   if (isLoading || isOrgDataLoading) {
     return (
@@ -289,8 +320,44 @@ function Dashboard() {
                 </div>
                 <span>Analyse détaillée</span>
               </h2>
-              <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-                <p className="text-gray-800 leading-relaxed text-lg">{selectedSessionDetail.detailedAnalysis}</p>
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border-2 border-gray-300">
+                <div className="text-gray-800 leading-relaxed text-base space-y-3">
+                  {getGeneralAnalysis(selectedSessionDetail.detailedAnalysis).split('\n\n').map((paragraph, index) => {
+                    const lines = paragraph.split('\n');
+                    const hasListItems = lines.some(line => line.trim().startsWith('•') || line.trim().startsWith('-'));
+
+                    if (hasListItems) {
+                      return (
+                        <div key={index} className="mb-3">
+                          {lines.map((line, lineIndex) => {
+                            const trimmed = line.trim();
+                            if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+                              return (
+                                <div key={lineIndex} className="flex items-start space-x-2 mb-2 ml-4">
+                                  <span className="text-blue-600 font-bold mt-1">•</span>
+                                  <span className="flex-1">{trimmed.substring(1).trim()}</span>
+                                </div>
+                              );
+                            } else if (trimmed) {
+                              return (
+                                <div key={lineIndex} className="font-semibold text-gray-900 mb-2">
+                                  {trimmed}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })}
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <p key={index} className="mb-3">
+                          {paragraph}
+                        </p>
+                      );
+                    }
+                  })}
+                </div>
               </div>
             </div>
           )}

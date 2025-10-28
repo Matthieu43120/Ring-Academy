@@ -41,12 +41,14 @@ Une fois les variables configurées, déclenchez un nouveau déploiement.
 - Assurez-vous que vos fonctions Edge Supabase sont déployées avant le front-end
 
 ## Sécurité
-## Support
 
 La clé API OpenAI est maintenant protégée :
 - Elle n'est plus exposée dans le code frontend
 - Elle est stockée de manière sécurisée dans les variables d'environnement des fonctions Netlify
 - Les appels à OpenAI passent par des fonctions Netlify qui agissent comme proxy sécurisé
+
+## Support
+
 En cas de problème, vérifiez :
 1. Que toutes les variables d'environnement sont correctement configurées
 2. Que le build se termine sans erreur

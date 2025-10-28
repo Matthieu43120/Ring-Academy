@@ -22,9 +22,11 @@ import {
   XCircle,
   AlertCircle,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  Stethoscope
 } from 'lucide-react';
 import DashboardInsights from '../components/DashboardInsights';
+import DiagnosticPanel from '../components/DiagnosticPanel';
 import { analyzeUserSessions } from '../services/sessionAnalytics';
 import { cleanAnalyseGenerale } from '../utils/analysisParser';
 
@@ -61,7 +63,7 @@ function Dashboard() {
   const [orgName, setOrgName] = useState('');
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
   const [orgCreated, setOrgCreated] = useState(false);
-  const [currentView, setCurrentView] = useState<'personal' | 'organization'>('personal');
+  const [currentView, setCurrentView] = useState<'personal' | 'organization' | 'diagnostic'>('personal');
   const [organizationView, setOrganizationView] = useState<'members' | 'overview'>('members');
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [selectedSessionDetail, setSelectedSessionDetail] = useState<any | null>(null);
@@ -499,6 +501,17 @@ function Dashboard() {
                   >
                     Vue organisation
                   </button>
+                  <button
+                    onClick={() => setCurrentView('diagnostic')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${
+                      currentView === 'diagnostic'
+                        ? 'bg-slate-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    <Stethoscope className="h-4 w-4" />
+                    <span>Diagnostic</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -531,7 +544,11 @@ function Dashboard() {
           </div>
         )}
 
-        {currentView === 'personal' ? (
+        {currentView === 'diagnostic' ? (
+          <div className="mb-8">
+            <DiagnosticPanel />
+          </div>
+        ) : currentView === 'personal' ? (
           <>
             {/* Crédits personnels ou organisation */}
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">

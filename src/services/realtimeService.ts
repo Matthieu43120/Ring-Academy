@@ -11,6 +11,21 @@ export interface ConversationMessage {
   content: string;
 }
 
+export type ErrorType =
+  | 'microphone_permission_denied'
+  | 'microphone_not_found'
+  | 'session_creation_failed'
+  | 'webrtc_connection_failed'
+  | 'network_error'
+  | 'openai_api_error'
+  | 'unknown_error';
+
+export interface DetailedError {
+  type: ErrorType;
+  message: string;
+  details?: string;
+}
+
 export class RealtimeService {
   private peerConnection: RTCPeerConnection | null = null;
   private dataChannel: RTCDataChannel | null = null;
@@ -18,20 +33,86 @@ export class RealtimeService {
   private conversationHistory: ConversationMessage[] = [];
   private isConnected = false;
   private sessionId: string | null = null;
+  private lastError: DetailedError | null = null;
 
   private onConversationUpdateCallback?: (history: ConversationMessage[]) => void;
   private onStateChangeCallback?: (state: 'connecting' | 'connected' | 'disconnected' | 'error') => void;
   private onAIStateChangeCallback?: (state: 'listening' | 'thinking' | 'speaking') => void;
+  private onErrorCallback?: (error: DetailedError) => void;
 
   constructor() {
     this.audioElement = new Audio();
     this.audioElement.autoplay = true;
   }
 
+  private createError(type: ErrorType, message: string, details?: string): DetailedError {
+    return { type, message, details };
+  }
+
+  private handleError(error: DetailedError): void {
+    this.lastError = error;
+    console.error(`❌ ${error.type}:`, error.message, error.details || '');
+    this.onErrorCallback?.(error);
+    this.onStateChangeCallback?.('error');
+  }
+
+  async checkMicrophonePermissions(): Promise<{ granted: boolean; error?: DetailedError }> {
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+
+      if (permissionStatus.state === 'denied') {
+        const error = this.createError(
+          'microphone_permission_denied',
+          'Permissions microphone refusées',
+          'Veuillez autoriser l\'accès au microphone dans les paramètres de votre navigateur'
+        );
+        return { granted: false, error };
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+        return { granted: true };
+      } catch (err: any) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          const error = this.createError(
+            'microphone_permission_denied',
+            'Permissions microphone refusées',
+            'Cliquez sur l\'icône de cadenas dans la barre d\'adresse pour autoriser le microphone'
+          );
+          return { granted: false, error };
+        } else if (err.name === 'NotFoundError') {
+          const error = this.createError(
+            'microphone_not_found',
+            'Aucun microphone détecté',
+            'Veuillez brancher un microphone et réessayer'
+          );
+          return { granted: false, error };
+        }
+        throw err;
+      }
+    } catch (err: any) {
+      const error = this.createError(
+        'unknown_error',
+        'Erreur lors de la vérification des permissions',
+        err.message
+      );
+      return { granted: false, error };
+    }
+  }
+
   async startSession(config: RealtimeConfig): Promise<void> {
     try {
       console.log('🚀 Starting Realtime API session...');
       this.onStateChangeCallback?.('connecting');
+
+      const micCheck = await this.checkMicrophonePermissions();
+      if (!micCheck.granted) {
+        this.handleError(micCheck.error!);
+        throw new Error(micCheck.error!.message);
+      }
+
+      console.log('✅ Microphone permissions granted');
 
       const response = await fetch(REALTIME_SESSION_URL, {
         method: 'POST',
@@ -42,8 +123,17 @@ export class RealtimeService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create session');
+        const errorData = await response.json().catch(() => ({}));
+
+        const error = this.createError(
+          response.status === 401 || response.status === 403
+            ? 'openai_api_error'
+            : 'session_creation_failed',
+          'Échec de création de la session',
+          errorData.error || errorData.details || `HTTP ${response.status}`
+        );
+        this.handleError(error);
+        throw new Error(error.message);
       }
 
       const { clientSecret, sessionId } = await response.json();
@@ -52,9 +142,15 @@ export class RealtimeService {
       console.log('✅ Ephemeral session created:', sessionId);
 
       await this.setupWebRTC(clientSecret);
-    } catch (error) {
-      console.error('❌ Error starting session:', error);
-      this.onStateChangeCallback?.('error');
+    } catch (error: any) {
+      if (!this.lastError) {
+        const detailedError = this.createError(
+          'network_error',
+          'Erreur réseau',
+          error.message || 'Impossible de se connecter au serveur'
+        );
+        this.handleError(detailedError);
+      }
       throw error;
     }
   }
@@ -67,13 +163,35 @@ export class RealtimeService {
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
       });
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
+      let mediaStream: MediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+      } catch (err: any) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          const error = this.createError(
+            'microphone_permission_denied',
+            'Permissions microphone refusées',
+            'Autorisez le microphone pour continuer'
+          );
+          this.handleError(error);
+          throw error;
+        } else if (err.name === 'NotFoundError') {
+          const error = this.createError(
+            'microphone_not_found',
+            'Aucun microphone détecté',
+            'Veuillez brancher un microphone'
+          );
+          this.handleError(error);
+          throw error;
+        }
+        throw err;
+      }
 
       mediaStream.getTracks().forEach(track => {
         this.peerConnection?.addTrack(track, mediaStream);
@@ -100,9 +218,17 @@ export class RealtimeService {
           this.isConnected = true;
           this.onStateChangeCallback?.('connected');
           this.onAIStateChangeCallback?.('speaking');
-        } else if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+        } else if (state === 'disconnected') {
           this.isConnected = false;
           this.onStateChangeCallback?.('disconnected');
+        } else if (state === 'failed') {
+          this.isConnected = false;
+          const error = this.createError(
+            'webrtc_connection_failed',
+            'Échec de connexion WebRTC',
+            'La connexion audio n\'a pas pu être établie'
+          );
+          this.handleError(error);
         }
       };
 
@@ -117,17 +243,34 @@ export class RealtimeService {
 
       console.log('📤 Sending SDP offer to OpenAI...');
 
-      const sdpResponse = await fetch('https://api.openai.com/v1/realtime', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${clientSecret}`,
-          'Content-Type': 'application/sdp',
-        },
-        body: offer.sdp,
-      });
+      let sdpResponse: Response;
+      try {
+        sdpResponse = await fetch('https://api.openai.com/v1/realtime', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${clientSecret}`,
+            'Content-Type': 'application/sdp',
+          },
+          body: offer.sdp,
+        });
+      } catch (err: any) {
+        const error = this.createError(
+          'network_error',
+          'Erreur réseau',
+          'Impossible de se connecter à OpenAI. Vérifiez votre connexion Internet.'
+        );
+        this.handleError(error);
+        throw error;
+      }
 
       if (!sdpResponse.ok) {
-        throw new Error(`SDP exchange failed: ${sdpResponse.status}`);
+        const error = this.createError(
+          'openai_api_error',
+          'Erreur API OpenAI',
+          `Échec d'échange SDP: ${sdpResponse.status}`
+        );
+        this.handleError(error);
+        throw error;
       }
 
       const answerSdp = await sdpResponse.text();
@@ -139,9 +282,15 @@ export class RealtimeService {
       });
 
       console.log('✅ WebRTC connection established');
-    } catch (error) {
-      console.error('❌ Error setting up WebRTC:', error);
-      this.onStateChangeCallback?.('error');
+    } catch (error: any) {
+      if (!this.lastError) {
+        const detailedError = this.createError(
+          'webrtc_connection_failed',
+          'Erreur de connexion WebRTC',
+          error.message
+        );
+        this.handleError(detailedError);
+      }
       throw error;
     }
   }
@@ -259,8 +408,16 @@ export class RealtimeService {
     this.onAIStateChangeCallback = callback;
   }
 
+  onError(callback: (error: DetailedError) => void): void {
+    this.onErrorCallback = callback;
+  }
+
   getConversationHistory(): ConversationMessage[] {
     return this.conversationHistory;
+  }
+
+  getLastError(): DetailedError | null {
+    return this.lastError;
   }
 
   async endSession(): Promise<void> {

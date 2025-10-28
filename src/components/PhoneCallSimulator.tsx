@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Phone, PhoneOff, Volume2, VolumeX } from 'lucide-react';
+import { Phone, PhoneOff, Volume2, VolumeX, RefreshCw } from 'lucide-react';
 import { TrainingConfig, SessionResult } from '../pages/Training';
-import { RealtimeService } from '../services/realtimeService';
+import { RealtimeService, DetailedError } from '../services/realtimeService';
 import { analyzeCall } from '../services/openai';
 
 interface PhoneCallSimulatorProps {
@@ -18,7 +18,8 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
   const [callDuration, setCallDuration] = useState(0);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [isMuted, setIsMuted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<DetailedError | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const realtimeService = useRef<RealtimeService | null>(null);
   const callStarted = useRef(false);
@@ -69,11 +70,20 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
         if (state === 'connected') {
           setCallState('connected');
           setStartTime(new Date());
-        } else if (state === 'error') {
-          setError('Erreur de connexion avec l\'IA');
+          setError(null);
         } else if (state === 'disconnected' && callState !== 'ended') {
-          setError('Connexion perdue');
+          const detailedError: DetailedError = {
+            type: 'network_error',
+            message: 'Connexion perdue',
+            details: 'La connexion avec le serveur a été interrompue'
+          };
+          setError(detailedError);
         }
+      });
+
+      realtimeService.current.onError((detailedError) => {
+        console.error('🚨 Detailed error:', detailedError);
+        setError(detailedError);
       });
 
       realtimeService.current.onAIStateChange((state) => {
@@ -90,11 +100,35 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
         voice: contact.voice,
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error initiating call:', error);
-      setError('Impossible de démarrer l\'appel. Vérifiez vos permissions microphone.');
+
+      const lastError = realtimeService.current?.getLastError();
+      if (lastError) {
+        setError(lastError);
+      } else {
+        setError({
+          type: 'unknown_error',
+          message: 'Erreur inconnue',
+          details: error.message || 'Une erreur inattendue s\'est produite'
+        });
+      }
       setCallState('ended');
     }
+  };
+
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    setError(null);
+    setCallState('dialing');
+    callStarted.current = false;
+
+    if (realtimeService.current) {
+      await realtimeService.current.endSession();
+    }
+
+    await initiateCall();
+    setIsRetrying(false);
   };
 
   const playRingtone = (): Promise<void> => {
@@ -380,8 +414,21 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
               )}
 
               {error && (
-                <div className="bg-red-900/50 border border-red-500 rounded-lg p-3">
-                  <p className="text-red-300 text-sm">{error}</p>
+                <div className="bg-red-900/50 border border-red-500 rounded-lg p-4 space-y-2">
+                  <p className="text-red-200 font-semibold text-sm">{error.message}</p>
+                  {error.details && (
+                    <p className="text-red-300 text-xs">{error.details}</p>
+                  )}
+                  {callState === 'ended' && (
+                    <button
+                      onClick={handleRetry}
+                      disabled={isRetrying}
+                      className="mt-2 w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center space-x-2"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
+                      <span>{isRetrying ? 'Reconnexion...' : 'Réessayer'}</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

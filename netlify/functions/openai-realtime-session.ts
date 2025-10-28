@@ -27,19 +27,64 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     const { target, difficulty, voice } = JSON.parse(event.body || "{}");
 
     if (!process.env.OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY not configured');
+      console.error('❌ OPENAI_API_KEY not configured in Netlify environment variables');
+      console.error('Please configure it at: Site settings > Environment variables');
       return {
         statusCode: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: "OpenAI API key not configured" }),
+        body: JSON.stringify({
+          error: "Configuration serveur incorrecte",
+          details: "La clé API OpenAI n'est pas configurée. Veuillez contacter l'administrateur."
+        }),
       };
     }
 
     if (!target || !difficulty || !voice) {
+      console.error('❌ Missing required parameters:', { target, difficulty, voice });
       return {
         statusCode: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: "Missing required parameters: target, difficulty, voice" }),
+        body: JSON.stringify({
+          error: "Paramètres manquants",
+          details: "Les paramètres target, difficulty et voice sont requis"
+        }),
+      };
+    }
+
+    const validTargets = ['secretary', 'hr', 'manager', 'sales'];
+    const validDifficulties = ['easy', 'medium', 'hard'];
+    const validVoices = ['nova', 'onyx', 'shimmer', 'echo', 'alloy', 'fable'];
+
+    if (!validTargets.includes(target)) {
+      return {
+        statusCode: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: "Paramètre invalide",
+          details: `Le target doit être l'un des suivants: ${validTargets.join(', ')}`
+        }),
+      };
+    }
+
+    if (!validDifficulties.includes(difficulty)) {
+      return {
+        statusCode: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: "Paramètre invalide",
+          details: `La difficulté doit être l'une des suivantes: ${validDifficulties.join(', ')}`
+        }),
+      };
+    }
+
+    if (!validVoices.includes(voice)) {
+      return {
+        statusCode: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: "Paramètre invalide",
+          details: `La voix doit être l'une des suivantes: ${validVoices.join(', ')}`
+        }),
       };
     }
 
@@ -66,49 +111,84 @@ IMPORTANT:
 - Reste dans ton rôle en permanence
 - Tu décroches le téléphone, commence par dire 'Allô ?' ou une variante naturelle`;
 
-    console.log('Creating ephemeral token for Realtime API...');
+    console.log('🔑 Creating ephemeral token for Realtime API...');
+    console.log('📊 Configuration:', { target, difficulty, voice });
 
-    const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-realtime-preview-2024-12-17',
-        voice: voice,
-        instructions: systemInstructions,
-        input_audio_transcription: {
-          model: 'whisper-1'
+    let response: Response;
+    try {
+      response = await fetch('https://api.openai.com/v1/realtime/sessions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
         },
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 500
-        },
-        temperature: 0.8,
-        max_response_output_tokens: 4096
-      }),
-    });
+        body: JSON.stringify({
+          model: 'gpt-4o-realtime-preview-2024-12-17',
+          voice: voice,
+          instructions: systemInstructions,
+          input_audio_transcription: {
+            model: 'whisper-1'
+          },
+          turn_detection: {
+            type: 'server_vad',
+            threshold: 0.5,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 500
+          },
+          temperature: 0.8,
+          max_response_output_tokens: 4096
+        }),
+      });
+    } catch (fetchError: any) {
+      console.error('❌ Network error connecting to OpenAI:', fetchError);
+      return {
+        statusCode: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: "Erreur réseau",
+          details: "Impossible de contacter l'API OpenAI. Vérifiez la connexion Internet."
+        }),
+      };
+    }
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('OpenAI Realtime API error:', errorData);
-      console.error('OpenAI Realtime API status:', response.status);
+      console.error('❌ OpenAI Realtime API error:', errorData);
+      console.error('❌ OpenAI Realtime API status:', response.status);
+
+      let userFriendlyError = "Erreur de l'API OpenAI";
+      let errorDetails = errorData;
+
+      if (response.status === 401) {
+        userFriendlyError = "Clé API invalide";
+        errorDetails = "La clé API OpenAI configurée n'est pas valide.";
+        console.error('⚠️  Please verify OPENAI_API_KEY in Netlify environment variables');
+      } else if (response.status === 403) {
+        userFriendlyError = "Accès refusé";
+        errorDetails = "Cette clé API n'a pas accès à l'API Realtime. Vérifiez votre plan OpenAI.";
+        console.error('⚠️  Your OpenAI API key may not have access to Realtime API');
+      } else if (response.status === 429) {
+        userFriendlyError = "Limite de requêtes atteinte";
+        errorDetails = "Trop de requêtes. Veuillez réessayer dans quelques instants.";
+      } else if (response.status >= 500) {
+        userFriendlyError = "Erreur serveur OpenAI";
+        errorDetails = "Le serveur OpenAI rencontre des difficultés. Réessayez plus tard.";
+      }
+
       return {
         statusCode: response.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          error: `OpenAI Realtime API error (${response.status})`,
-          details: errorData
+          error: userFriendlyError,
+          details: errorDetails
         }),
       };
     }
 
     const sessionData = await response.json();
 
-    console.log('Ephemeral session created successfully');
+    console.log('✅ Ephemeral session created successfully');
+    console.log('📋 Session ID:', sessionData.id);
 
     return {
       statusCode: 200,
@@ -119,15 +199,15 @@ IMPORTANT:
         expiresAt: sessionData.expires_at
       }),
     };
-  } catch (error) {
-    console.error("Error in OpenAI Realtime session function:", error);
+  } catch (error: any) {
+    console.error("❌ Unexpected error in OpenAI Realtime session function:", error);
 
     return {
       statusCode: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        error: error.message || "Internal Server Error",
-        type: error.name || "UnknownError"
+        error: "Erreur serveur interne",
+        details: error?.message || "Une erreur inattendue s'est produite"
       }),
     };
   }

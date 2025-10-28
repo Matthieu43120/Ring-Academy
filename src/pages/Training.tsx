@@ -6,6 +6,7 @@ import SessionSummary from '../components/SessionSummary';
 import { useAuth } from '../contexts/AuthContext';
 import { AlertTriangle, Play, Gift, Mic, MicOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { phoneCallService } from '../services/phoneCallService';
 
 export interface TrainingConfig {
   target: string;
@@ -32,21 +33,13 @@ function Training() {
   const hasCredits = creditsInfo.simulationsLeft > 0;
   const canUseTrial = canUseFreeTrial();
 
+  // Demander la permission du microphone dès le chargement de la page
   useEffect(() => {
     const requestPermission = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          }
-        });
-
-        stream.getTracks().forEach(track => track.stop());
-        setHasMicrophonePermission(true);
-      } catch (error) {
-        console.warn('Microphone permission denied or error:', error);
+      if (phoneCallService.isSupported()) {
+        const hasPermission = await phoneCallService.requestMicrophonePermission();
+        setHasMicrophonePermission(hasPermission);
+      } else {
         setHasMicrophonePermission(false);
       }
     };

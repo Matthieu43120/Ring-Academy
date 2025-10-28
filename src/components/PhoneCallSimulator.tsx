@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Phone, PhoneOff, Volume2, VolumeX, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Phone, PhoneOff, Volume2, VolumeX } from 'lucide-react';
 import { TrainingConfig, SessionResult } from '../pages/Training';
-import { RealtimeService, DetailedError } from '../services/realtimeService';
-import { analyzeCall } from '../services/openai';
+import { generateAIResponseFast, analyzeCall, ConversationContext, getAudioBufferForSentence, playAudioBuffer, playTextImmediately } from '../services/openai';
+import { phoneCallService } from '../services/phoneCallService';
 
 interface PhoneCallSimulatorProps {
   config: TrainingConfig;
@@ -10,179 +10,389 @@ interface PhoneCallSimulatorProps {
 }
 
 type CallState = 'dialing' | 'ringing' | 'connected' | 'ended';
-type AIState = 'listening' | 'thinking' | 'speaking';
 
 function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps) {
   const [callState, setCallState] = useState<CallState>('dialing');
-  const [aiState, setAIState] = useState<AIState>('speaking');
   const [callDuration, setCallDuration] = useState(0);
   const [startTime, setStartTime] = useState<Date | null>(null);
+  const [endTime, setEndTime] = useState<Date | null>(null);
   const [isMuted, setIsMuted] = useState(false);
-  const [error, setError] = useState<DetailedError | null>(null);
-  const [isRetrying, setIsRetrying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [partialAIText, setPartialAIText] = useState('');
+  
+  const aiResponseCompleteRef = useRef(false);
+  const shouldEndCallAfterAudioRef = useRef(false);
+  
+  const [conversationContext, setConversationContext] = useState<ConversationContext>({
+    target: config.target,
+    difficulty: config.difficulty,
+    conversationHistory: []
+  });
 
-  const realtimeService = useRef<RealtimeService | null>(null);
+  // ULTRA-OPTIMISATION: Refs pour éviter les race conditions
+  const callStateRef = useRef<CallState>('dialing');
+  const processingResponseRef = useRef(false);
   const callStarted = useRef(false);
-  const timerInterval = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // REF CRITIQUE: Historique de conversation en temps réel
+  const conversationHistoryRef = useRef<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
 
+  // Synchroniser les refs avec les states
+  useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
+
+  useEffect(() => {
+    conversationHistoryRef.current = conversationContext.conversationHistory;
+  }, [conversationContext.conversationHistory]);
+
+
+  // Timer de l'appel
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (callState === 'connected' && startTime) {
+      interval = setInterval(() => {
+        setCallDuration(Math.floor((Date.now() - startTime.getTime()) / 1000));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [callState, startTime]);
+
+  // Démarrer l'appel
   useEffect(() => {
     if (!callStarted.current) {
       callStarted.current = true;
       initiateCall();
     }
-
-    return () => {
-      if (timerInterval.current) {
-        clearInterval(timerInterval.current);
-      }
-      if (realtimeService.current) {
-        realtimeService.current.endSession();
-      }
-    };
   }, []);
-
-  useEffect(() => {
-    if (callState === 'connected' && startTime) {
-      timerInterval.current = setInterval(() => {
-        setCallDuration(Math.floor((Date.now() - startTime.getTime()) / 1000));
-      }, 1000);
-    }
-
-    return () => {
-      if (timerInterval.current) {
-        clearInterval(timerInterval.current);
-      }
-    };
-  }, [callState, startTime]);
 
   const initiateCall = async () => {
     try {
       setCallState('ringing');
+      callStateRef.current = 'ringing';
+      
+      // Démarrer la préparation de la première réponse IA en parallèle
+      const aiResponsePromise = prepareFirstAIResponse();
+      
+      // Jouer la sonnerie (maintenant plus longue)
+      await phoneCallService.playRingtone();
+      
+      // L'IA décroche
+      setCallState('connected');
+      callStateRef.current = 'connected';
+      setStartTime(new Date());
+      
+      // Attendre que la première réponse IA soit prête et la jouer immédiatement
+      await playFirstAIResponse(aiResponsePromise);
+      
+      // Activation du microphone immédiatement après la première réponse
+      if (phoneCallService.isSupported()) {
+        await phoneCallService.startContinuousRecording(handleUserSpeech);
+      } else {
+        setError('Microphone non supporté. Utilisez un navigateur compatible.');
+      }
+      
+    } catch (error) {
+      setError('Impossible de démarrer l\'appel. Vérifiez vos permissions microphone.');
+    }
+  };
 
-      await playRingtone();
+  // Nouvelle méthode pour préparer la première réponse IA
+  const prepareFirstAIResponse = async () => {
+    setError(null);
+    setAiThinking(true);
+    
 
-      const contact = getContactInfo();
-      realtimeService.current = new RealtimeService();
-
-      realtimeService.current.onStateChange((state) => {
-        console.log('📡 Connection state:', state);
-
-        if (state === 'connected') {
-          setCallState('connected');
-          setStartTime(new Date());
-          setError(null);
-        } else if (state === 'disconnected' && callState !== 'ended') {
-          const detailedError: DetailedError = {
-            type: 'network_error',
-            message: 'Connexion perdue',
-            details: 'La connexion avec le serveur a été interrompue'
-          };
-          setError(detailedError);
-        }
-      });
-
-      realtimeService.current.onError((detailedError) => {
-        console.error('🚨 Detailed error:', detailedError);
-        setError(detailedError);
-      });
-
-      realtimeService.current.onAIStateChange((state) => {
-        setAIState(state);
-      });
-
-      realtimeService.current.onConversationUpdate((history) => {
-        console.log('💬 Conversation updated:', history.length, 'messages');
-      });
-
-      await realtimeService.current.startSession({
+    try {
+      // Préparer le contexte pour la première réponse
+      const context: ConversationContext = {
         target: config.target,
         difficulty: config.difficulty,
-        voice: contact.voice,
-      });
-
-    } catch (error: any) {
-      console.error('❌ Error initiating call:', error);
-
-      const lastError = realtimeService.current?.getLastError();
-      if (lastError) {
-        setError(lastError);
-      } else {
-        setError({
-          type: 'unknown_error',
-          message: 'Erreur inconnue',
-          details: error.message || 'Une erreur inattendue s\'est produite'
-        });
-      }
-      setCallState('ended');
-    }
-  };
-
-  const handleRetry = async () => {
-    setIsRetrying(true);
-    setError(null);
-    setCallState('dialing');
-    callStarted.current = false;
-
-    if (realtimeService.current) {
-      await realtimeService.current.endSession();
-    }
-
-    await initiateCall();
-    setIsRetrying(false);
-  };
-
-  const playRingtone = (): Promise<void> => {
-    return new Promise((resolve) => {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-
-      const playTone = () => {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-
-        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-        oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.15);
-
-        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
-        gainNode.gain.setValueAtTime(0, audioContext.currentTime + 0.3);
-
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.3);
+        conversationHistory: []
       };
+      
+      // Générer la réponse IA sans callbacks pour éviter les effets de bord
+      const aiResponse = await generateAIResponseFast(
+        context,
+        true // isFirstMessage
+      );
 
-      playTone();
-      setTimeout(() => playTone(), 1000);
-      setTimeout(() => playTone(), 2000);
-      setTimeout(() => resolve(), 3000);
-    });
+      console.log('✅ Première réponse IA générée:', aiResponse.message);
+      
+      // Préparer l'audio en parallèle
+      const contact = getContactInfo();
+      const audioBuffer = await getAudioBufferForSentence(aiResponse.message, contact.voice);
+      
+      return {
+        message: aiResponse.message,
+        audioBuffer,
+        shouldEndCall: aiResponse.shouldEndCall
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur préparation première réponse IA:', error);
+      throw error;
+    }
+  };
+
+  // Nouvelle méthode pour jouer la première réponse IA préparée
+  const playFirstAIResponse = async (aiResponsePromise: Promise<any>) => {
+    try {
+      setAiThinking(false);
+      setIsAISpeaking(true);
+      phoneCallService.setAISpeaking(true);
+      
+      // Attendre que la réponse IA soit prête
+      const { message, audioBuffer, shouldEndCall } = await aiResponsePromise;
+      
+      // Jouer l'audio immédiatement
+      if (!isMuted && callStateRef.current === 'connected') {
+        try {
+          console.log('🎵 Lecture immédiate du "Allô" de l\'IA');
+          await playAudioBuffer(audioBuffer);
+        } catch (audioError) {
+          console.error('❌ Erreur audio, fallback synthèse vocale:', audioError);
+          await playTextImmediately(message);
+        }
+      }
+      
+      // Mettre à jour l'historique de conversation
+      const newHistory = [{ role: 'assistant' as const, content: message }];
+      setConversationContext(prev => ({ ...prev, conversationHistory: newHistory }));
+      conversationHistoryRef.current = newHistory;
+      
+      // Libérer le microphone
+      phoneCallService.setAISpeaking(false);
+      setIsAISpeaking(false);
+      
+      // Terminer l'appel si demandé
+      if (shouldEndCall) {
+        setTimeout(() => {
+          handleEndCall();
+        }, 500);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur lecture première réponse IA:', error);
+      setError('Erreur de connexion avec l\'IA.');
+      
+      // Fallback avec synthèse vocale
+      const fallbackMessage = "Allô ?";
+      if (!isMuted) {
+        try {
+          await playTextImmediately(fallbackMessage);
+        } catch (fallbackError) {
+          console.error('❌ Erreur fallback synthèse:', fallbackError);
+        }
+      }
+      
+      // Ajouter le message de fallback à l'historique
+      const fallbackHistory = [{ role: 'assistant' as const, content: fallbackMessage }];
+      setConversationContext(prev => ({ ...prev, conversationHistory: fallbackHistory }));
+      conversationHistoryRef.current = fallbackHistory;
+      
+      phoneCallService.setAISpeaking(false);
+      setIsAISpeaking(false);
+    }
+  };
+
+  const handleUserSpeech = async (transcript: string) => {
+    // UTILISER LES REFS pour les vérifications d'état
+    if (callStateRef.current !== 'connected') {
+      return;
+    }
+
+    if (processingResponseRef.current) {
+      return;
+    }
+
+    // CRITIQUE: Ajouter la transcription à l'historique ET à la ref
+    const userMessage = { role: 'user' as const, content: transcript };
+    const updatedHistory = [...conversationHistoryRef.current, userMessage];
+    
+    setConversationContext(prev => ({
+      ...prev,
+      conversationHistory: updatedHistory
+    }));
+    conversationHistoryRef.current = updatedHistory;
+    
+    // ULTRA-OPTIMISATION: Réponse IA immédiate
+    setTimeout(() => {
+      handleAIResponse();
+    }, 10); // ULTRA-RÉDUCTION: 15ms → 10ms pour réactivité maximale
+  };
+
+  const handleAIResponse = async () => {
+    if (callStateRef.current !== 'connected') {
+      return;
+    }
+
+    if (processingResponseRef.current) {
+      return;
+    }
+
+    processingResponseRef.current = true;
+    setError(null);
+    setIsAISpeaking(true);
+    phoneCallService.setAISpeaking(true); // CRITIQUE: Informer le service immédiatement
+    setAiThinking(true);
+    setPartialAIText('');
+    
+    aiResponseCompleteRef.current = false;
+    shouldEndCallAfterAudioRef.current = false;
+
+    try {
+      // CRITIQUE: Utiliser l'historique de la ref (le plus à jour)
+      const contextForAI: ConversationContext = {
+        target: config.target,
+        difficulty: config.difficulty,
+        conversationHistory: conversationHistoryRef.current
+      };
+      
+      // Générer la réponse IA
+      const aiResponse = await generateAIResponseFast(
+        contextForAI,
+        false, // isFirstMessage
+        async (finalText) => {
+          // Callback quand le texte final est prêt
+          console.log('✅ Texte IA final reçu:', finalText);
+          setAiThinking(false);
+          setPartialAIText('');
+          aiResponseCompleteRef.current = true;
+          
+          // Délai minimal avant lecture audio pour éviter la coupure
+          setTimeout(async () => {
+            if (!isMuted && callStateRef.current === 'connected') {
+              try {
+                console.log('🎵 Génération et lecture audio complète...');
+                const contact = getContactInfo();
+                const audioBuffer = await getAudioBufferForSentence(finalText, contact.voice);
+                await playAudioBuffer(audioBuffer);
+                console.log('✅ Audio terminé, libération du micro');
+                
+                // Libérer le microphone après la lecture
+                processingResponseRef.current = false;
+                phoneCallService.setAISpeaking(false);
+                setIsAISpeaking(false);
+                
+                // Terminer l'appel si demandé
+                if (shouldEndCallAfterAudioRef.current) {
+                  setTimeout(() => {
+                    handleEndCall();
+                  }, 500);
+                }
+              } catch (audioError) {
+                console.error('❌ Erreur audio, fallback synthèse vocale:', audioError);
+                // Fallback vers synthèse vocale
+                await playTextImmediately(finalText);
+                processingResponseRef.current = false;
+                phoneCallService.setAISpeaking(false);
+                setIsAISpeaking(false);
+              }
+            } else {
+              // Si muet, libérer immédiatement
+              processingResponseRef.current = false;
+              phoneCallService.setAISpeaking(false);
+              setIsAISpeaking(false);
+            }
+          }, 50);
+        },
+        (partialText) => {
+          // Callback pour le texte partiel (feedback visuel)
+          setPartialAIText(partialText);
+          setAiThinking(false); // Désactiver "L'IA réfléchit" dès le premier texte
+        }
+      );
+      
+
+      // CRITIQUE: Ajouter la réponse IA à l'historique ET à la ref
+      const aiMessage = { role: 'assistant' as const, content: aiResponse.message };
+      const updatedHistory = [...conversationHistoryRef.current, aiMessage];
+      
+      setConversationContext(prev => ({
+        ...prev,
+        conversationHistory: updatedHistory
+      }));
+      conversationHistoryRef.current = updatedHistory;
+      
+      setPartialAIText('');
+
+      // Terminer l'appel si demandé par l'IA
+      if (aiResponse.shouldEndCall) {
+        shouldEndCallAfterAudioRef.current = true;
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur handleAIResponse:', error);
+      setPartialAIText('');
+      processingResponseRef.current = false;
+      setError('Erreur de connexion avec l\'IA.');
+      
+      // Fallback avec synthèse vocale
+      const fallbackMessage = "Pardon ?";
+      if (!isMuted) {
+        try {
+          await playTextImmediately(fallbackMessage);
+        } catch (fallbackError) {
+          console.error('❌ Erreur fallback synthèse:', fallbackError);
+        } finally {
+          phoneCallService.setAISpeaking(false);
+          setIsAISpeaking(false);
+        }
+      } else {
+        setIsAISpeaking(false);
+        phoneCallService.setAISpeaking(false);
+      }
+      
+      // Ajouter le message de fallback à l'historique
+      const fallbackAIMessage = { role: 'assistant' as const, content: fallbackMessage };
+      const updatedHistory = [...conversationHistoryRef.current, fallbackAIMessage];
+      
+      setConversationContext(prev => ({
+        ...prev,
+        conversationHistory: updatedHistory
+      }));
+      conversationHistoryRef.current = updatedHistory;
+    } finally {
+      setAiThinking(false);
+    }
   };
 
   const handleEndCall = async () => {
     const callEndTime = new Date();
+    setEndTime(callEndTime);
     setCallState('ended');
+    callStateRef.current = 'ended';
+    
+    aiResponseCompleteRef.current = false;
+    shouldEndCallAfterAudioRef.current = false;
+    
+    phoneCallService.stopRecording();
+    phoneCallService.setAISpeaking(false);
+    setIsAISpeaking(false);
+    processingResponseRef.current = false;
 
-    if (timerInterval.current) {
-      clearInterval(timerInterval.current);
-    }
-
+    // Calculer la durée finale précise
     const finalDuration = startTime ? Math.floor((callEndTime.getTime() - startTime.getTime()) / 1000) : callDuration;
     setCallDuration(finalDuration);
 
-    let conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
-
-    if (realtimeService.current) {
-      conversationHistory = realtimeService.current.getConversationHistory();
-      await realtimeService.current.endSession();
+    // Arrêter tout audio en cours
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
     }
+    window.speechSynthesis.cancel();
 
+    // Analyser l'appel avec l'IA STRICTE
     try {
       const analysis = await analyzeCall(
-        conversationHistory,
+        conversationHistoryRef.current, // Utiliser la ref pour l'historique le plus récent
         config.target,
         config.difficulty,
-        finalDuration
+        callDuration
       );
 
       const result: SessionResult = {
@@ -196,11 +406,11 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
 
       onCallComplete(result);
     } catch (error) {
-      console.error('❌ Error analyzing call:', error);
-
-      const userMessages = conversationHistory.filter(m => m.role === 'user');
+      // Analyse de fallback STRICTE
+      const userMessages = conversationHistoryRef.current.filter(m => m.role === 'user');
       const totalWords = userMessages.reduce((total, msg) => total + msg.content.split(' ').length, 0);
-
+      
+      // SCORING STRICT pour fallback
       let fallbackScore = 0;
       if (userMessages.length === 0) fallbackScore = 0;
       else if (userMessages.length === 1 && totalWords < 10) fallbackScore = 15;
@@ -273,33 +483,33 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
 
   const getContactInfo = () => {
     const contactMap = {
-      secretary: {
-        name: 'Marie Dubois',
-        title: 'Secrétaire',
+      secretary: { 
+        name: 'Marie Dubois', 
+        title: 'Secrétaire', 
         company: 'Entreprise ABC',
         avatar: '👩‍💼',
         color: 'from-blue-500 to-blue-600',
         voice: 'nova'
       },
-      hr: {
-        name: 'Pierre Martin',
-        title: 'Directeur RH',
+      hr: { 
+        name: 'Pierre Martin', 
+        title: 'Directeur RH', 
         company: 'Groupe XYZ',
         avatar: '👨‍💼',
         color: 'from-purple-500 to-purple-600',
         voice: 'onyx'
       },
-      manager: {
-        name: 'Sophie Laurent',
-        title: 'Directrice',
+      manager: { 
+        name: 'Sophie Laurent', 
+        title: 'Directrice', 
         company: 'Innovation Corp',
         avatar: '👩‍💼',
         color: 'from-primary-500 to-primary-600',
         voice: 'shimmer'
       },
-      sales: {
-        name: 'Thomas Durand',
-        title: 'Commercial',
+      sales: { 
+        name: 'Thomas Durand', 
+        title: 'Commercial', 
         company: 'Vente Pro',
         avatar: '👨‍💼',
         color: 'from-accent-500 to-accent-600',
@@ -329,42 +539,12 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
     }
   };
 
-  const getAIStateText = () => {
-    switch (aiState) {
-      case 'listening': return 'L\'IA vous écoute...';
-      case 'thinking': return 'L\'IA réfléchit...';
-      case 'speaking': return 'L\'IA parle...';
-    }
-  };
-
-  const getAIStateColor = () => {
-    switch (aiState) {
-      case 'listening': return 'bg-green-900/50 border-green-500';
-      case 'thinking': return 'bg-blue-900/50 border-blue-500';
-      case 'speaking': return 'bg-purple-900/50 border-purple-500';
-    }
-  };
-
-  const getAIStateTextColor = () => {
-    switch (aiState) {
-      case 'listening': return 'text-green-300';
-      case 'thinking': return 'text-blue-300';
-      case 'speaking': return 'text-purple-300';
-    }
-  };
-
-  const getAIStateDotColor = () => {
-    switch (aiState) {
-      case 'listening': return 'bg-green-400';
-      case 'thinking': return 'bg-blue-400';
-      case 'speaking': return 'bg-purple-400';
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
       <div className="w-full max-w-sm mx-auto">
+        {/* Interface d'appel téléphonique */}
         <div className="bg-gray-900 rounded-3xl shadow-2xl border border-gray-700 overflow-hidden">
+          {/* Header */}
           <div className="bg-gradient-to-r from-gray-800 to-gray-700 px-6 py-4 text-center">
             <div className={`text-sm font-medium ${getCallStateColor()}`}>
               {getCallStateText()}
@@ -374,13 +554,14 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
             </div>
           </div>
 
+          {/* Contact Info */}
           <div className="px-8 py-12 text-center">
             <div className="mb-6">
               <div className={`w-32 h-32 mx-auto rounded-full bg-gradient-to-br ${contact.color} flex items-center justify-center text-6xl shadow-2xl transition-all duration-300`}>
                 {contact.avatar}
               </div>
             </div>
-
+            
             <h2 className="text-2xl font-bold text-white mb-2">
               {contact.name}
             </h2>
@@ -391,6 +572,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
               {contact.company}
             </p>
 
+            {/* Status indicators */}
             <div className="mt-8 space-y-3">
               {callState === 'ringing' && (
                 <div className="flex items-center justify-center space-x-2 text-blue-400">
@@ -401,47 +583,65 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
               )}
 
               {callState === 'connected' && (
-                <div className={`rounded-lg p-3 border ${getAIStateColor()}`}>
-                  <div className={`flex items-center justify-center space-x-2 ${getAIStateTextColor()}`}>
-                    <div className={`w-2 h-2 rounded-full animate-bounce ${getAIStateDotColor()}`}></div>
-                    <div className={`w-2 h-2 rounded-full animate-bounce ${getAIStateDotColor()}`} style={{ animationDelay: '0.1s' }}></div>
-                    <div className={`w-2 h-2 rounded-full animate-bounce ${getAIStateDotColor()}`} style={{ animationDelay: '0.2s' }}></div>
+                <div className={`rounded-lg p-3 border ${
+                  aiThinking 
+                    ? 'bg-blue-900/50 border-blue-500' 
+                    : isAISpeaking 
+                      ? 'bg-purple-900/50 border-purple-500'
+                      : 'bg-green-900/50 border-green-500'
+                }`}>
+                  <div className={`flex items-center justify-center space-x-2 ${
+                    aiThinking 
+                      ? 'text-blue-300' 
+                      : isAISpeaking 
+                        ? 'text-purple-300'
+                        : 'text-green-300'
+                  }`}>
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      aiThinking 
+                        ? 'bg-blue-400' 
+                        : isAISpeaking 
+                          ? 'bg-purple-400'
+                          : 'bg-green-400'
+                    }`}></div>
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      aiThinking 
+                        ? 'bg-blue-400' 
+                        : isAISpeaking 
+                          ? 'bg-purple-400'
+                          : 'bg-green-400'
+                    }`} style={{ animationDelay: '0.1s' }}></div>
+                    <div className={`w-2 h-2 rounded-full animate-bounce ${
+                      aiThinking 
+                        ? 'bg-blue-400' 
+                        : isAISpeaking 
+                          ? 'bg-purple-400'
+                          : 'bg-green-400'
+                    }`} style={{ animationDelay: '0.2s' }}></div>
                     <span className="ml-2 text-sm">
-                      {getAIStateText()}
+                      {aiThinking 
+                        ? 'L\'IA réfléchit...' 
+                        : isAISpeaking 
+                          ? 'L\'IA parle...'
+                          : 'L\'IA vous écoute...'
+                      }
                     </span>
                   </div>
                 </div>
               )}
 
-              {error && (
-                <div className="bg-red-900/50 border border-red-500 rounded-lg p-4 space-y-2">
-                  <p className="text-red-200 font-semibold text-sm">{error.message}</p>
-                  {error.details && (
-                    <p className="text-red-300 text-xs">{error.details}</p>
-                  )}
-                  {callState === 'ended' && (
-                    <button
-                      onClick={handleRetry}
-                      disabled={isRetrying}
-                      className="mt-2 w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center space-x-2"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
-                      <span>{isRetrying ? 'Reconnexion...' : 'Réessayer'}</span>
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 
+          {/* Controls */}
           <div className="px-8 pb-8">
             <div className="flex justify-center space-x-6">
               {callState === 'connected' && (
                 <button
                   onClick={() => setIsMuted(!isMuted)}
                   className={`p-4 rounded-full transition-all duration-300 ${
-                    isMuted
-                      ? 'bg-red-500 hover:bg-red-600'
+                    isMuted 
+                      ? 'bg-red-500 hover:bg-red-600' 
                       : 'bg-gray-700 hover:bg-gray-600'
                   }`}
                 >
@@ -464,9 +664,9 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
 
             <div className="text-center mt-6">
               <p className="text-gray-400 text-sm">
-                {aiState === 'thinking'
-                  ? 'Patientez pendant que l\'IA prépare sa réponse'
-                  : aiState === 'speaking'
+                {aiThinking 
+                  ? 'Patientez pendant que l\'IA prépare sa réponse' 
+                  : isAISpeaking 
                     ? 'Écoutez attentivement la réponse de l\'IA'
                     : 'À votre tour ! Parlez naturellement'
                 }
@@ -475,6 +675,7 @@ function PhoneCallSimulator({ config, onCallComplete }: PhoneCallSimulatorProps)
           </div>
         </div>
 
+        {/* Instructions */}
         {callState === 'dialing' && (
           <div className="mt-6 text-center">
             <p className="text-gray-400 text-sm">

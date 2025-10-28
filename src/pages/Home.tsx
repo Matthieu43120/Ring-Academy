@@ -51,7 +51,6 @@ function Home() {
                   <Bot className="h-8 w-8 text-accent-400" />
                   <span className="text-3xl font-bold text-white">IA</span>
                 </div>
-                <div className="text-neutral-300">Conversationnelle</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-white mb-2">24/7</div>

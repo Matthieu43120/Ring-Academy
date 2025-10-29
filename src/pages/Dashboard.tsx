@@ -22,11 +22,13 @@ import {
   XCircle,
   AlertCircle,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  Download
 } from 'lucide-react';
 import DashboardInsights from '../components/DashboardInsights';
 import { analyzeUserSessions } from '../services/sessionAnalytics';
 import { cleanAnalyseGenerale } from '../utils/analysisParser';
+import { generatePersonalDashboardPDF, generateOrganizationOverviewPDF, generateMemberPDF } from '../services/pdfExportService';
 
 // Définir les interfaces pour les données de l'organisation
 interface UserProfile {
@@ -74,6 +76,7 @@ function Dashboard() {
   const [orgMembersState, setOrgMembersState] = useState<UserProfile[]>([]);
   const [orgSessionsState, setOrgSessionsState] = useState<SessionRecord[]>([]);
   const [isOrgDataLoading, setIsOrgDataLoading] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const creditsInfo = getCreditsInfo();
 
@@ -201,6 +204,66 @@ function Dashboard() {
 
   const handleBackToSessions = () => {
     setSelectedSessionDetail(null);
+  };
+
+  const handleDownloadPersonalPDF = async () => {
+    if (!user) return;
+
+    setIsGeneratingPDF(true);
+    try {
+      generatePersonalDashboardPDF(user, sessions, personalAnalytics, selectedDifficulty);
+    } catch (error) {
+      console.error('Erreur lors de la génération du PDF:', error);
+      alert('Une erreur est survenue lors de la génération du PDF. Veuillez réessayer.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const handleDownloadOrganizationPDF = async () => {
+    if (!organization) return;
+
+    setIsGeneratingPDF(true);
+    try {
+      generateOrganizationOverviewPDF(
+        organization.name,
+        orgMembersState,
+        orgSessionsState,
+        organizationAnalytics,
+        orgOverviewDifficulty
+      );
+    } catch (error) {
+      console.error('Erreur lors de la génération du PDF:', error);
+      alert('Une erreur est survenue lors de la génération du PDF. Veuillez réessayer.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const handleDownloadMemberPDF = async (memberId: string) => {
+    if (!organization) return;
+
+    const member = orgMembersState.find(m => m.id === memberId);
+    if (!member) return;
+
+    const memberSessions = getMemberSessions(memberId);
+    const memberAnalytics = analyzeUserSessions(memberSessions, memberSelectedDifficulty);
+
+    setIsGeneratingPDF(true);
+    try {
+      generateMemberPDF(
+        member,
+        organization.name,
+        memberSessions,
+        memberAnalytics,
+        memberSelectedDifficulty
+      );
+    } catch (error) {
+      console.error('Erreur lors de la génération du PDF:', error);
+      alert('Une erreur est survenue lors de la génération du PDF. Veuillez réessayer.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   // Helper function to extract and format the general analysis
@@ -674,6 +737,39 @@ function Dashboard() {
               </div>
             </div>
 
+            {/* Bouton de téléchargement PDF */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-blue-100 p-3 rounded-lg">
+                    <Download className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Exporter mes données</h3>
+                    <p className="text-sm text-gray-600">Téléchargez un rapport PDF complet de vos performances</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleDownloadPersonalPDF}
+                  disabled={isGeneratingPDF || sessions.length === 0}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={sessions.length === 0 ? 'Aucune session à exporter' : 'Télécharger le rapport PDF'}
+                >
+                  {isGeneratingPDF ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Génération...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-5 w-5" />
+                      <span>Télécharger PDF</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
             {/* Insights et analyses */}
             <div className="mb-8">
               <DashboardInsights
@@ -984,6 +1080,39 @@ function Dashboard() {
                               </div>
                             </div>
 
+                            {/* Bouton de téléchargement PDF membre */}
+                            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className="bg-blue-100 p-3 rounded-lg">
+                                    <Download className="h-6 w-6 text-blue-600" />
+                                  </div>
+                                  <div>
+                                    <h3 className="text-lg font-semibold text-gray-900">Exporter les données du membre</h3>
+                                    <p className="text-sm text-gray-600">Téléchargez un rapport PDF des performances de {selectedMemberData.firstName}</p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleDownloadMemberPDF(selectedMember)}
+                                  disabled={isGeneratingPDF || memberSessions.length === 0}
+                                  className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title={memberSessions.length === 0 ? 'Aucune session à exporter' : 'Télécharger le rapport PDF'}
+                                >
+                                  {isGeneratingPDF ? (
+                                    <>
+                                      <Loader2 className="h-5 w-5 animate-spin" />
+                                      <span>Génération...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Download className="h-5 w-5" />
+                                      <span>Télécharger PDF</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+
                             {/* Insights du membre */}
                             <div className="mb-6">
                               <DashboardInsights
@@ -1147,6 +1276,14 @@ function Dashboard() {
                                     >
                                       Voir détails
                                     </button>
+                                    <button
+                                      onClick={() => handleDownloadMemberPDF(member.id)}
+                                      disabled={isGeneratingPDF || memberSessions.length === 0}
+                                      className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title={memberSessions.length === 0 ? 'Aucune session à exporter' : 'Télécharger PDF'}
+                                    >
+                                      <Download className="h-4 w-4" />
+                                    </button>
                                     {member.organizationRole !== 'owner' && (
                                       <button
                                         onClick={() => handleRemoveMember(member.id)}
@@ -1218,6 +1355,39 @@ function Dashboard() {
                               <p className="text-2xl font-bold text-gray-900">{organizationAnalytics.bestScore}</p>
                             </div>
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Bouton de téléchargement PDF organisation */}
+                      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-blue-100 p-3 rounded-lg">
+                              <Download className="h-6 w-6 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-900">Exporter les données de l'organisation</h3>
+                              <p className="text-sm text-gray-600">Téléchargez un rapport PDF complet des performances globales</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleDownloadOrganizationPDF}
+                            disabled={isGeneratingPDF || orgSessionsState.length === 0}
+                            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={orgSessionsState.length === 0 ? 'Aucune session à exporter' : 'Télécharger le rapport PDF'}
+                          >
+                            {isGeneratingPDF ? (
+                              <>
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                                <span>Génération...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-5 w-5" />
+                                <span>Télécharger PDF</span>
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
 

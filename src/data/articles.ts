@@ -16,6 +16,126 @@ export interface Article {
 
 export const articles: Article[] = [
   {
+    id: '4',
+    slug: 'prendre-rendez-vous-dirigeant-entreprise-prospection',
+    title: 'Comment prendre un rendez-vous avec un dirigeant d\'entreprise en prospection téléphonique',
+    metaTitle: 'Comment prendre un rendez-vous avec un dirigeant d\'entreprise en prospection téléphonique',
+    metaDescription: 'Découvrez comment obtenir un rendez-vous avec une cheffe d\'entreprise en prospection téléphonique. Entraînez-vous avec Sophie Laurent, cheffe d\'entreprise IA, et améliorez vos techniques de prise de rendez-vous avec des décideurs.',
+    excerpt: 'Dans la prospection B2B, atteindre une cheffe d\'entreprise est un véritable défi. Ces décideurs reçoivent de nombreux appels chaque semaine et ne se laissent convaincre que par des interlocuteurs préparés, clairs et pertinents.',
+    author: 'Équipe Ring Academy',
+    publishedAt: '2025-10-30',
+    category: 'Prospection',
+    readTime: '7 min',
+    keywords: [
+      'prendre rendez-vous dirigeant',
+      'prospection téléphonique',
+      'cheffe d\'entreprise',
+      'décideur entreprise',
+      'prospection B2B',
+      'formation commerciale',
+      'prise de rendez-vous',
+      'simulation appel'
+    ],
+    featured: true,
+    content: `
+      <h1>Comment prendre un rendez-vous avec un dirigeant d'entreprise en prospection téléphonique</h1>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <p>Dans la <strong>prospection B2B</strong>, atteindre une cheffe d'entreprise est un véritable défi. Ces décideurs reçoivent de nombreux appels chaque semaine et ne se laissent convaincre que par des interlocuteurs préparés, clairs et pertinents.</p>
+
+      <p>Pour aider commerciaux, indépendants et formateurs à se préparer efficacement, <strong>Ring Academy</strong> a créé <strong>Sophie Laurent, cheffe d'entreprise IA</strong>, qui vous permet de simuler un appel réel et d'améliorer vos techniques de <strong>prospection téléphonique</strong> avant de contacter de vrais décideurs.</p>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>Rencontre avec Sophie Laurent, cheffe d'entreprise IA</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <blockquote style="border-left: 4px solid #2563eb; padding-left: 1rem; font-style: italic; color: #475569; margin: 1.5rem 0;">
+        <p>« Je suis Sophie Laurent, cheffe d'entreprise.</p>
+        <p>Mon temps est compté et je reçois des dizaines d'appels chaque semaine. Si vous décrochez avec moi, soyez clair, précis et surtout pertinent.</p>
+        <p>Je veux comprendre en quelques secondes ce que vous m'apportez de concret. Si vous maîtrisez votre discours, que vous allez droit au but et que vous connaissez réellement mon activité, je vous écouterai.</p>
+        <p>Sinon… vous risquez de rejoindre la longue liste des commerciaux que j'ai poliment raccrochés.</p>
+        <p>Pensez-vous pouvoir capter mon attention ? »</p>
+      </blockquote>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>Pourquoi s'entraîner avec une cheffe d'entreprise IA ?</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <ul>
+        <li><strong>Permet de tester vos arguments et votre pitch</strong> dans un environnement réaliste.</li>
+        <li><strong>Développe la capacité à identifier rapidement</strong> les points d'intérêt d'un décideur.</li>
+        <li><strong>Idéal pour les formateurs et organismes de formation</strong> souhaitant enrichir leurs modules sur la <strong>prospection B2B</strong>.</li>
+        <li><strong>Utile pour les indépendants ou commerciaux</strong> qui veulent améliorer leur taux de réussite sur la <strong>prise de rendez-vous</strong> avec des décideurs.</li>
+      </ul>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>5 conseils pour séduire une cheffe d'entreprise</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <h3>1. Préparez votre appel avec précision</h3>
+      <ul>
+        <li>Connaissez le nom du décideur, son rôle et son secteur.</li>
+        <li>Formulez un pitch clair, court et percutant dès les premières secondes.</li>
+      </ul>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <h3>2. Soyez pertinent et concis</h3>
+      <ul>
+        <li>Les décideurs n'ont pas de temps à perdre : allez droit au but.</li>
+        <li>Présentez rapidement la valeur concrète de votre solution pour son entreprise.</li>
+      </ul>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <h3>3. Montrez que vous comprenez ses enjeux</h3>
+      <ul>
+        <li>Une recherche préalable sur l'entreprise et ses challenges fait toute la différence.</li>
+        <li>Mentionnez des points précis qui montrent que vous ne faites pas un appel générique.</li>
+      </ul>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <h3>4. Posez des questions ouvertes et engageantes</h3>
+      <p>Exemple :</p>
+      <ul>
+        <li>"Quels sont vos principaux défis commerciaux cette année ?"</li>
+        <li>"Quelles solutions utilisez-vous actuellement et quels résultats attendez-vous ?"</li>
+      </ul>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <h3>5. Entraînez-vous régulièrement</h3>
+      <ul>
+        <li>La répétition est la clé pour maîtriser le timing, le ton et l'argumentaire.</li>
+        <li><strong>Ring Academy</strong> vous permet de simuler des appels avec Sophie Laurent, afin de perfectionner vos techniques avant de contacter de vrais décideurs.</li>
+      </ul>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>Conclusion</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <p>Convaincre une <strong>cheffe d'entreprise</strong> nécessite préparation, pertinence et clarté. Avec <strong>Ring Academy</strong>, vous pouvez vous <strong>entraîner sur un prospect exigeant</strong>, développer vos compétences commerciales et améliorer vos chances de réussite en <strong>prospection B2B</strong>.</p>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <p style="background: linear-gradient(to right, #3b82f6, #2563eb); padding: 1.5rem; border-radius: 0.75rem; text-align: center;">
+        <a href="/training" style="color: white; text-decoration: none; font-weight: 600; font-size: 1.125rem;">
+          👉 Testez dès maintenant : Ring Academy – entraînez-vous à la prospection téléphonique
+        </a>
+      </p>
+    `
+  },
+  {
     id: '3',
     slug: 'comment-entrainer-prospection-telephonique',
     title: 'Comment s\'entraîner à la prospection téléphonique',

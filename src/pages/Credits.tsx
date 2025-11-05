@@ -20,7 +20,7 @@ function Credits() {
       credits: 10,
       price: 110,
       popular: false,
-      priceId: 'price_1Rng1gLq2s594jkdNPQcrCcM'
+      priceId: 'price_1S0lUZLq2s594jkdPOvAAN7T'
     },
     {
       credits: 25,

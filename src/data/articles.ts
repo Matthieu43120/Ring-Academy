@@ -17,7 +17,7 @@ export interface Article {
 export const articles: Article[] = [
   {
     id: '5',
-    slug: 'formation-prospection-telephonique-comment-evoluer',
+    slug: 'formation-prospection-telephonique',
     title: 'Formation prospection téléphonique : comment la faire évoluer ?',
     metaTitle: 'Formation prospection téléphonique : comment la faire évoluer ?',
     metaDescription: 'Découvrez comment l\'intelligence artificielle et les simulateurs d\'appel révolutionnent la formation commerciale et rendent l\'apprentissage de la prospection téléphonique plus engageant et efficace.',

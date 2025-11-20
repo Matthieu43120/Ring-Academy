@@ -16,6 +16,206 @@ export interface Article {
 
 export const articles: Article[] = [
   {
+    id: '7',
+    slug: 'suivi-pedagogique-prospection-telephonique-ia',
+    title: 'Suivi pédagogique en prospection téléphonique : l\'apport de l\'IA',
+    metaTitle: 'Suivi pédagogique en prospection téléphonique : l\'apport de l\'IA',
+    metaDescription: 'Découvrez comment moderniser le suivi pédagogique de vos formations commerciales grâce à l\'intelligence artificielle et au tableau de bord Ring Academy : analyse des appels, progression individuelle et vision globale du groupe.',
+    excerpt: 'Former à la prospection téléphonique, c\'est accompagner la progression des apprenants. Découvrez comment l\'IA et les tableaux de bord transforment le suivi pédagogique pour le rendre plus objectif et mesurable.',
+    author: 'Équipe Ring Academy',
+    publishedAt: '2025-11-20',
+    category: 'Formation',
+    readTime: '7 min',
+    keywords: [
+      'suivi pédagogique',
+      'formation commerciale',
+      'prospection téléphonique',
+      'intelligence artificielle formation',
+      'tableau de bord formateur',
+      'évaluation compétences commerciales',
+      'progression apprenants',
+      'coaching commercial'
+    ],
+    featured: true,
+    content: `
+      <h1>Suivi pédagogique en prospection téléphonique : l'apport de l'IA</h1>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <h2>Découvrez comment moderniser le suivi pédagogique de vos formations commerciales grâce à l'intelligence artificielle et au tableau de bord Ring Academy : analyse des appels, progression individuelle et vision globale du groupe</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <h2>1. Pourquoi le suivi pédagogique est essentiel dans une formation à la prospection</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <p>Former à la <strong>prospection téléphonique</strong>, ce n'est pas seulement enseigner un discours.</p>
+
+      <p>C'est accompagner la progression des apprenants, identifier leurs forces, leurs points d'amélioration et adapter l'accompagnement en conséquence.</p>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <p>Pourtant, dans beaucoup de formations :</p>
+
+      <ul>
+        <li>Le suivi repose uniquement sur les observations du formateur.</li>
+        <li>Les retours manquent d'objectivité et de traçabilité.</li>
+        <li>Les progrès sont difficiles à mesurer sur la durée.</li>
+      </ul>
+
+      <p>C'est là que les outils basés sur l'<strong>intelligence artificielle</strong> changent la donne : ils permettent un suivi précis, visuel et continu de chaque apprenant.</p>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>2. Les limites du suivi traditionnel</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <p>Même les meilleures <strong>formations commerciales</strong> se heurtent souvent aux mêmes contraintes :</p>
+
+      <ul>
+        <li>Les jeux de rôles ne sont pas toujours enregistrés.</li>
+        <li>Le feedback dépend de la perception du formateur.</li>
+        <li>Les apprenants n'ont pas toujours conscience de leur progression réelle.</li>
+        <li>Les responsables pédagogiques manquent d'indicateurs concrets pour évaluer l'efficacité du module, notamment sur plusieurs sessions de formations.</li>
+      </ul>
+
+      <p>En somme, beaucoup de décisions pédagogiques se prennent "au feeling", faute de données objectives.</p>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>3. L'apport de l'intelligence artificielle dans l'évaluation</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <p>Grâce à l'<strong>IA</strong>, il devient possible d'analyser chaque appel simulé selon des critères mesurables :</p>
+
+      <ul>
+        <li><strong>Structure du discours</strong></li>
+        <li><strong>Ton et rythme de voix</strong></li>
+        <li><strong>Gestion des objections</strong></li>
+        <li><strong>Clarté de la présentation</strong></li>
+        <li><strong>Conclusion et prise de rendez-vous</strong></li>
+      </ul>
+
+      <p>L'IA ne remplace pas le formateur, elle lui donne des <strong>données concrètes</strong> pour enrichir son analyse et personnaliser son accompagnement.</p>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>4. Le tableau de bord Ring Academy : un vrai copilote pédagogique</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <p><strong>Ring Academy</strong> va plus loin qu'une simple simulation d'appel : elle fournit un <strong>tableau de bord complet</strong> pour le suivi des apprenants et des groupes.</p>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <h3>Suivi individuel</h3>
+
+      <p>Chaque apprenant dispose d'un espace personnel qui affiche :</p>
+
+      <ul>
+        <li>L'évolution de ses performances sur les derniers appels (graphiques clairs et dynamiques)</li>
+        <li>Ses <strong>points forts récurrents</strong> (ex. : bonne posture, ton convaincant, structure fluide)</li>
+        <li>Ses <strong>points de vigilance</strong> (ex. : relance trop rapide, gestion d'objections perfectible)</li>
+        <li>Une recommandation globale générée par l'IA pour orienter la progression</li>
+      </ul>
+
+      <p>Le formateur peut ainsi suivre l'évolution de chaque profil, identifier les tendances et proposer un accompagnement ciblé.</p>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <h3>Suivi global du groupe</h3>
+
+      <p>Le <strong>tableau de bord Ring Academy</strong> permet également une visualisation collective :</p>
+
+      <ul>
+        <li>Vue d'ensemble de la progression du groupe (moyenne des scores, évolution globale).</li>
+        <li>Identification rapide des points forts communs et difficultés récurrentes.</li>
+        <li>Export et partage de rapports pour les bilans pédagogiques.</li>
+      </ul>
+
+      <p>En un coup d'œil, le formateur ou responsable pédagogique sait où en est son groupe, sans passer des heures à compiler des notes.</p>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>5. Les bénéfices pour les organismes de formation et coachs commerciaux</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <h3>Pour les formateurs :</h3>
+
+      <ul>
+        <li>Feedback objectif et instantané après chaque appel.</li>
+        <li>Gain de temps dans l'analyse et le reporting.</li>
+        <li>Suivi visuel de la progression (graphes, scores, tendances).</li>
+        <li>Aide à la personnalisation du coaching.</li>
+      </ul>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <h3>Pour les responsables pédagogiques :</h3>
+
+      <ul>
+        <li>Vision globale de la performance des groupes.</li>
+        <li>Données exploitables pour les bilans qualité et audits.</li>
+        <li>Preuve tangible de la montée en compétences des apprenants.</li>
+        <li>Valorisation du programme de formation (innovation, traçabilité, efficacité).</li>
+      </ul>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>6. Une nouvelle manière d'évaluer les compétences commerciales</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <p>Avec <strong>Ring Academy</strong>, l'évaluation devient un processus continu et interactif :</p>
+
+      <p>Les apprenants s'entraînent, obtiennent des feedbacks précis, visualisent leurs progrès, et les formateurs disposent d'indicateurs clairs pour ajuster leur pédagogie.</p>
+
+      <div style="margin-bottom: 1.5rem;"></div>
+
+      <p>Ce modèle de "<strong>suivi intelligent</strong>" est une véritable révolution pour la formation à la prospection téléphonique :</p>
+
+      <ul>
+        <li>Plus d'objectivité,</li>
+        <li>Plus de clarté,</li>
+        <li>Et une meilleure valorisation du travail des formateurs.</li>
+      </ul>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>7. Ring Academy, un outil au service de la pédagogie</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <p><strong>Ring Academy</strong> n'est pas qu'un simulateur d'appel IA : c'est une <strong>solution complète de suivi et d'analyse pédagogique</strong>.</p>
+
+      <p>Elle combine :</p>
+
+      <ul>
+        <li>L'entraînement vocal immersif,</li>
+        <li>Le feedback en temps réel,</li>
+        <li>Et un tableau de bord visuel pour piloter la progression.</li>
+      </ul>
+
+      <p>Grâce à cette approche, les <strong>organismes de formation</strong> peuvent mesurer concrètement la montée en compétences de leurs apprenants et prouver l'efficacité de leurs modules.</p>
+
+      <div style="margin-bottom: 3rem;"></div>
+
+      <h2>Conclusion : piloter la progression, c'est la clé de l'efficacité</h2>
+
+      <div style="margin-bottom: 2rem;"></div>
+
+      <p>Le succès d'une <strong>formation commerciale</strong> ne se mesure plus seulement au contenu transmis, mais à la progression réelle des apprenants.</p>
+
+      <p>Avec <strong>Ring Academy</strong>, le suivi devient simple, précis et motivant, pour le formateur comme pour l'apprenant.</p>
+
+      <p>La prospection téléphonique devient enfin un terrain d'entraînement mesurable, où chaque appel compte et chaque progrès se voit.</p>
+    `
+  },
+  {
     id: '6',
     slug: 'former-apprenants-prise-rendez-vous',
     title: 'Former ses apprenants à décrocher des rendez-vous : les meilleures pratiques',
